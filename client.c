@@ -80,8 +80,21 @@ int main(int argc, char *argv[])
 
 	char entry[50];
 	char out[5] = "exit";
+	printf("client: Ola, seja bem-vindo, digite /help para ver os comandos\n");
+	printf("client: Insira o comando: ");
 	scanf("%s", &entry);
 	while(strcmp(entry, out) != 0) {
+		if (strcmp(entry, "/help") == 0) {
+			printf("Comandos: \n");
+			printf("\tinsert : inserir usuario novo\n");
+			printf("\tall : retornar todos os usuarios\n");
+			printf("\temail : retornar um usuario especifico\n");
+			printf("\tcourse : retornar todos os usuarios formados em um determinado curso\n");
+			printf("\tskill : retornar todos os usuarios que tem uma determinada habilidade\n");
+			printf("\tyear : retornar todos os usuarios formados em um determinado ano\n");
+			printf("\tremove : remover usuario\n");
+			printf("\texit : finalizar execucao\n");
+		}
 		if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 	    	perror("recv");
 	   		exit(1);
@@ -90,6 +103,8 @@ int main(int argc, char *argv[])
 		buf[numbytes] = '\0';
 
 		printf("client: received '%s'\n",buf);
+		
+		printf("client: Insira o comando: ");
 		scanf("%s", &entry);
 	}
 	close(sockfd);
