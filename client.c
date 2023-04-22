@@ -18,6 +18,22 @@
 
 #define MAXDATASIZE 100 // max number of bytes we can get at once 
 
+void send_message(int numbytes, int sockfd, char buf[MAXDATASIZE]){
+
+    if (send(sockfd, buf, strlen(buf), 0) == -1) {
+        perror("send");
+    }
+    printf("client: sent '%s'\n", buf);
+}
+
+void receive_message(int numbytes, int sockfd, char buf[MAXDATASIZE]){
+    if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+        perror("recv");
+        exit(1);
+    }
+	printf("client: received '%s'\n",buf);
+}
+
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -31,7 +47,6 @@ void *get_in_addr(struct sockaddr *sa)
 int main(int argc, char *argv[])
 {
 	int sockfd, numbytes;  
-	int new_fd;
 	char buf[MAXDATASIZE];
 	struct addrinfo hints, *servinfo, *p;
 	struct sockaddr_storage their_addr; // connector's address information
@@ -85,7 +100,7 @@ int main(int argc, char *argv[])
 	char out[5] = "exit";
 	printf("client: Ola, seja bem-vindo, digite /help para ver os comandos\n");
 	printf("client: Insira o comando: ");
-	scanf(" %s", &entry);
+	scanf("%s", &entry);
 	while(strcmp(entry, out) != 0) {
 		if (strcmp(entry, "/help") == 0) {
 			printf("Comandos: \n");
@@ -98,28 +113,28 @@ int main(int argc, char *argv[])
 			printf("\tremove : remover usuario\n");
 			printf("\texit : finalizar execucao\n");
 			printf("client: Insira o comando: ");
-			scanf(" %s", &entry);
+			scanf("%s", &entry);
 			continue;
 		}
 
 		//================ SEND ==================
 
-		if (send(sockfd, entry, strlen(entry), 0) == -1) {
-    		perror("send");
-    		exit(1);
+		send_message(numbytes, sockfd, entry);
+
+		if(strcmp(entry,"insert") == 0){
+			char aux[MAXDATASIZE];
+			printf("client: Insira o email: ");
+			scanf("%s", &aux);
+			send_message(numbytes, sockfd, aux);
 		}
+
 		//============ RECEIVE ====================
-		if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-	    	perror("recv");
-	   		exit(1);
-		}
 
-		buf[numbytes] = '\0';
-
-		printf("client: received '%s'\n",buf);
+		bzero(buf, MAXDATASIZE);
+		receive_message(numbytes, sockfd, buf);
 		
 		printf("client: Insira o comando: ");
-		scanf(" %s", &entry);
+		scanf("%s", &entry);
 	}
 	close(sockfd);
 

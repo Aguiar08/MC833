@@ -19,12 +19,35 @@
 #define MAXDATASIZE 100 // max number of bytes we can get at once 
 
 
-void create_profile() {
+void send_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
+
+    if (send(new_fd, buf, strlen(buf), 0) == -1) {
+        perror("send");
+    }
+    printf("server: sent '%s'\n", buf);
+}
+
+void receive_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
+    if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+        perror("recv");
+        exit(1);
+    }
+	printf("server: received '%s'\n",buf);
+}
+
+void create_profile(int numbytes, int new_fd) {
     
     char email[50], nome[50], sobrenome[50], residencia[50], formacao[50], habilidades[100];
     int ano_formatura;
     printf("Digite o seu email: ");
-    scanf("%s", email);
+    if ((numbytes = recv(new_fd, email, MAXDATASIZE-1, 0)) == -1) {
+            perror("recv");
+            exit(1);
+        }
+
+	email[numbytes] = '\0';
+    printf("%s", email);
+    return 0;
     printf("Digite o seu nome: ");
     scanf("%s", nome);
     printf("Digite o seu sobrenome: ");
@@ -49,8 +72,8 @@ void create_profile() {
     fprintf(file, "Ano de Formatura: %d\n", ano_formatura);
     fprintf(file, "Habilidades: %s\n", habilidades);
     fclose(file);
-    printf("Perfil criado e salvo em perfil.txt com sucesso!\n");
-    return 0;
+    printf("server: Perfil criado e salvo em perfil.txt com sucesso!\n");
+    return "Perfil criado e salvo em perfil.txt com sucesso!";
 }
 
 void get_profile() {
@@ -167,28 +190,24 @@ int main(void) {
     new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
     if (new_fd == -1) {
         perror("accept");
+        exit(1);
     }
 
     while(1) {  // main accept() loop
 
         //========== RECEIVE ===================
-
-        if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
-            perror("recv");
-            exit(1);
-        }
-
-		buf[numbytes] = '\0';
-
-		printf("server: received '%s'\n",buf);
+        bzero(buf, MAXDATASIZE);
+        receive_message(numbytes, new_fd, buf);
+    
+        if(strcmp(buf, "insert") == 0){
+            char email[50], nome[50], sobrenome[50], residencia[50], formacao[50], habilidades[100];
+            int ano_formatura;
+            receive_message(numbytes, new_fd, email);
+	    }
 
         //========== SEND ===================
 
-        char *welcome_message = "Bem-vindo ao meu servidor!";
-        if (send(new_fd, welcome_message, strlen(welcome_message), 0) == -1) {
-            perror("send");
-        }
-        printf("server: sent '%s'\n", welcome_message);
+        send_message(numbytes, new_fd, buf);
     }
     close(sockfd);
 
