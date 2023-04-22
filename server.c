@@ -16,6 +16,8 @@
 
 #define BACKLOG 10   // how many pending connections queue will hold
 
+#define MAXDATASIZE 100 // max number of bytes we can get at once 
+
 
 void create_profile() {
     
@@ -34,7 +36,7 @@ void create_profile() {
     printf("Digite o ano de sua formatura: ");
     scanf("%d", &ano_formatura);
     printf("Digite suas habilidades: ");
-    scanf("%s", habilidades);
+    fgets(habilidades, 100, stdin);
     FILE *file = fopen(email, "w");
     if (file == NULL) {
         printf("Erro ao criar arquivo!\n");
@@ -96,6 +98,8 @@ void *get_in_addr(struct sockaddr *sa) {
 
 int main(void) {
     int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
+    int numbytes;  
+	char buf[MAXDATASIZE];
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
@@ -159,28 +163,34 @@ int main(void) {
 
     printf("server: waiting for connections...\n");
 
-    while(1) {  // main accept() loop
-        sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (new_fd == -1) {
-            perror("accept");
-            continue;
-        }
-
-        inet_ntop(their_addr.ss_family,
-            get_in_addr((struct sockaddr *)&their_addr),
-            s, sizeof s);
-        printf("server: got connection from %s\n", s);
-
-        if (!fork()) { // this is the child process
-            close(sockfd); // child doesn't need the listener
-            if (send(new_fd, "Hello, world!", 13, 0) == -1)
-                perror("send");
-            close(new_fd);
-            exit(0);
-        }
-        close(new_fd);  // parent doesn't need this
+    sin_size = sizeof their_addr;
+    new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+    if (new_fd == -1) {
+        perror("accept");
     }
+
+    while(1) {  // main accept() loop
+
+        //========== RECEIVE ===================
+
+        if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+            perror("recv");
+            exit(1);
+        }
+
+		buf[numbytes] = '\0';
+
+		printf("server: received '%s'\n",buf);
+
+        //========== SEND ===================
+
+        char *welcome_message = "Bem-vindo ao meu servidor!";
+        if (send(new_fd, welcome_message, strlen(welcome_message), 0) == -1) {
+            perror("send");
+        }
+        printf("server: sent '%s'\n", welcome_message);
+    }
+    close(sockfd);
 
     return 0;
 }

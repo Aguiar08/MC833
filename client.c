@@ -31,8 +31,11 @@ void *get_in_addr(struct sockaddr *sa)
 int main(int argc, char *argv[])
 {
 	int sockfd, numbytes;  
+	int new_fd;
 	char buf[MAXDATASIZE];
 	struct addrinfo hints, *servinfo, *p;
+	struct sockaddr_storage their_addr; // connector's address information
+	socklen_t sin_size;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
 
@@ -82,7 +85,7 @@ int main(int argc, char *argv[])
 	char out[5] = "exit";
 	printf("client: Ola, seja bem-vindo, digite /help para ver os comandos\n");
 	printf("client: Insira o comando: ");
-	scanf("%s", &entry);
+	scanf(" %s", &entry);
 	while(strcmp(entry, out) != 0) {
 		if (strcmp(entry, "/help") == 0) {
 			printf("Comandos: \n");
@@ -94,7 +97,18 @@ int main(int argc, char *argv[])
 			printf("\tyear : retornar todos os usuarios formados em um determinado ano\n");
 			printf("\tremove : remover usuario\n");
 			printf("\texit : finalizar execucao\n");
+			printf("client: Insira o comando: ");
+			scanf(" %s", &entry);
+			continue;
 		}
+
+		//================ SEND ==================
+
+		if (send(sockfd, entry, strlen(entry), 0) == -1) {
+    		perror("send");
+    		exit(1);
+		}
+		//============ RECEIVE ====================
 		if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
 	    	perror("recv");
 	   		exit(1);
@@ -105,7 +119,7 @@ int main(int argc, char *argv[])
 		printf("client: received '%s'\n",buf);
 		
 		printf("client: Insira o comando: ");
-		scanf("%s", &entry);
+		scanf(" %s", &entry);
 	}
 	close(sockfd);
 
