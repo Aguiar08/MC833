@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <dirent.h>
 
 #define PORT "3490"  // the port users will be connecting to
 
@@ -35,7 +36,7 @@ void receive_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
 	printf("server: received '%s'\n",buf);
 }
 
-void create_profile(int numbytes, int new_fd) {
+char* create_profile(int numbytes, int new_fd) {
     
     char email[50], nome[50], sobrenome[50], residencia[50], formacao[50], habilidades[100];
     int ano_formatura;
@@ -63,7 +64,7 @@ void create_profile(int numbytes, int new_fd) {
     FILE *file = fopen(email, "w");
     if (file == NULL) {
         printf("Erro ao criar arquivo!\n");
-        return 1;
+        return "";
     }
     fprintf(file, "Email: %s\n", email);
     fprintf(file, "Nome: %s Sobrenome: %s\n", nome, sobrenome);
@@ -76,28 +77,156 @@ void create_profile(int numbytes, int new_fd) {
     return "Perfil criado e salvo em perfil.txt com sucesso!";
 }
 
-void get_profile() {
+void get_profile(char* email) {
+    FILE *file = fopen(email, "r");
+    if (file == NULL){
+        printf("Arquivo não encontrado!\n");
+        return;
+    }
 
+    // char[6][] carac = {"Email", "Nome", "Residencia", "Formacao Academica", "Ano de Formatura", "Habilidades"}
+
+    char linha[100];
+    char *result;
+    while (!feof(file)){
+        result = fgets(linha, 100, file);
+        if (result)
+            printf("%s", result);
+        else {
+            printf("Erro ao ler arquivo!\n");
+            return;
+        }
+    }
+    fclose(file);
 }
 
-void get_profile_by_course() {
+void get_profile_by_course(char* course) {
+    DIR *folder;
+    struct dirent *entry;
 
+    folder = opendir(".");
+    if (folder == NULL) {
+        perror("Erro ao abrir pasta com os arquivos dos usuarios!\n");
+        return;
+    }
+
+    while ((entry = readdir(folder)) != NULL) {
+        if (entry->d_type == DT_REG) {
+            FILE *file = fopen(entry->d_name, "r");
+            if (file == NULL) {
+                perror("Nao foi possivel abrir o arquivo!\n");
+                continue;
+            }
+
+            // ler o arquivo de texto
+            char buffer[1000];
+            char *curso = NULL;
+            while (fgets(buffer, 1000, file) != NULL) {
+                if (strstr(buffer, "Formacao Academica") != NULL) {
+                    curso = strchr(buffer, ':') + 2;
+                    curso[strlen(curso)-2] = '\0';
+                }
+
+                if (curso != NULL && strcmp(curso, course) == 0) {
+                    printf("%s", buffer);
+                }
+            }
+
+            fclose(file);
+        }
+    }
+
+    closedir(folder);
+    return;
 }
 
 void get_profile_by_ability() {
 
 }
 
-void get_profile_by_year() {
+void get_profile_by_year(int year) {
+    DIR *folder;
+    struct dirent *entry;
 
+    folder = opendir(".");
+    if (folder == NULL) {
+        perror("Erro ao abrir pasta com os arquivos dos usuarios!\n");
+        return;
+    }
+
+    while ((entry = readdir(folder)) != NULL) {
+        if (entry->d_type == DT_REG) {
+            FILE *file = fopen(entry->d_name, "r");
+            if (file == NULL) {
+                perror("Nao foi possivel abrir o arquivo!\n");
+                continue;
+            }
+
+            // ler o arquivo de texto
+            char buffer[1000];
+            char *ano = NULL;
+            while (fgets(buffer, 1000, file) != NULL) {
+                if (strstr(buffer, "Ano de Formatura") != NULL) {
+                    ano = strchr(buffer, ':') + 2;
+                    ano[strlen(ano)-2] = '\0';
+                }
+
+                if (ano != NULL && strcmp(ano, year) == 0) {
+                    printf("%s", buffer);
+                }
+            }
+
+            fclose(file);
+        }
+    }
+
+    closedir(folder);
+    return;
 }
 
 void get_all() {
+    DIR *folder;
+    struct dirent *entry;
 
+    folder = opendir(".");
+    if (folder == NULL) {
+        perror("Erro ao abrir pasta com os arquivos dos usuarios!\n");
+        return;
+    }
+
+    while ((entry = readdir(folder)) != NULL) {
+        if (entry->d_type == DT_REG) {
+            FILE *file = fopen(entry->d_name, "r");
+            if (file == NULL) {
+                perror("Nao foi possivel abrir o arquivo!\n");
+                continue;
+            }
+
+            char buffer[1000];
+            while (fgets(buffer, 1000, file) != NULL) {
+                printf("%s", buffer);
+            }
+
+            fclose(file);
+        }
+    }
+
+    closedir(folder);
+    return;
 }
 
-void remove_profile() {
+void remove_profile(char* email) {
+    FILE *file = fopen(email, "r");
+    if (file == NULL){
+        printf("Arquivo não encontrado!\n");
+        return;
+    }
 
+    if (remove(email) == 0) {
+        printf("Arquivo %s removido com sucesso!\n", email);
+    } else {
+        printf("Erro ao remover arquivo %s!\n", email);
+    }
 }
 
 void sigchld_handler(int s){ 
