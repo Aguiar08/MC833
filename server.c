@@ -17,8 +17,62 @@
 
 #define BACKLOG 10   // how many pending connections queue will hold
 
-#define MAXDATASIZE 100 // max number of bytes we can get at once 
+#define MAXDATASIZE 1024 // max number of bytes we can get at once 
 
+void save_data(char* dados) {
+    FILE* arquivo;
+    char* campo;
+    char email[100], nome[100], sobrenome[100], residencia[100], formacao[100], ano[5], habilidades[200];
+
+    campo = strtok(dados, ";");
+    int i = 0;
+    while(campo != NULL) {
+        switch (i) {
+            case 0:
+                strcpy(email, campo);
+                break;
+            case 1:
+                strcpy(nome, campo);
+                break;
+            case 2:
+                strcpy(sobrenome, campo);
+                break;
+            case 3:
+                strcpy(residencia, campo);
+                break;
+            case 4:
+                strcpy(formacao, campo);
+                break;
+            case 5:
+                strcpy(ano, campo);
+                break;
+            case 6:
+                strcpy(habilidades, campo);
+                break;
+            default:
+                printf("Dados inválidos\n");
+                return;
+        }
+        campo = strtok(NULL, ";");
+        i++;
+    }
+    char nome_arquivo[100];
+    sprintf(nome_arquivo, "../users/%s.txt", email);
+    arquivo = fopen(nome_arquivo, "a+");
+    if(arquivo == NULL) {
+        printf("Erro ao abrir o arquivo\n");
+        return;
+    }
+    
+    fprintf(arquivo, "Email: %s\n", email);
+    fprintf(arquivo, "Nome: %s Sobrenome: %s\n", nome, sobrenome);
+    fprintf(arquivo, "Residência: %s\n", residencia);
+    fprintf(arquivo, "Formação Acadêmica: %s\n", formacao);
+    fprintf(arquivo, "Ano de Formatura: %s\n", ano);
+    fprintf(arquivo, "Habilidades: %s\n", habilidades);
+
+    fclose(arquivo);
+}
 
 void send_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
 
@@ -28,53 +82,13 @@ void send_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
     printf("server: sent '%s'\n", buf);
 }
 
-void receive_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
+char* receive_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
     if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
         perror("recv");
         exit(1);
     }
 	printf("server: received '%s'\n",buf);
-}
-
-char* create_profile(int numbytes, int new_fd) {
-    
-    char email[50], nome[50], sobrenome[50], residencia[50], formacao[50], habilidades[100];
-    int ano_formatura;
-    printf("Digite o seu email: ");
-    if ((numbytes = recv(new_fd, email, MAXDATASIZE-1, 0)) == -1) {
-            perror("recv");
-            exit(1);
-        }
-
-	email[numbytes] = '\0';
-    printf("%s", email);
-    return 0;
-    printf("Digite o seu nome: ");
-    scanf("%s", nome);
-    printf("Digite o seu sobrenome: ");
-    scanf("%s", sobrenome);
-    printf("Digite a sua residencia: ");
-    scanf("%s", residencia);
-    printf("Digite a sua formacao academica: ");
-    scanf("%s", formacao);
-    printf("Digite o ano de sua formatura: ");
-    scanf("%d", &ano_formatura);
-    printf("Digite suas habilidades: ");
-    fgets(habilidades, 100, stdin);
-    FILE *file = fopen(email, "w");
-    if (file == NULL) {
-        printf("Erro ao criar arquivo!\n");
-        return "";
-    }
-    fprintf(file, "Email: %s\n", email);
-    fprintf(file, "Nome: %s Sobrenome: %s\n", nome, sobrenome);
-    fprintf(file, "Residencia: %s\n", residencia);
-    fprintf(file, "Formacao Academica: %s\n", formacao);
-    fprintf(file, "Ano de Formatura: %d\n", ano_formatura);
-    fprintf(file, "Habilidades: %s\n", habilidades);
-    fclose(file);
-    printf("server: Perfil criado e salvo em perfil.txt com sucesso!\n");
-    return "Perfil criado e salvo em perfil.txt com sucesso!";
+    return buf;
 }
 
 void get_profile(char* email) {
@@ -329,9 +343,9 @@ int main(void) {
         receive_message(numbytes, new_fd, buf);
     
         if(strcmp(buf, "insert") == 0){
-            char email[50], nome[50], sobrenome[50], residencia[50], formacao[50], habilidades[100];
-            int ano_formatura;
-            receive_message(numbytes, new_fd, email);
+            char entry[MAXDATASIZE];
+            save_data(receive_message(numbytes, new_fd, entry));
+            char * buf = "server: Client saved in the database";
 	    }
 
         //========== SEND ===================

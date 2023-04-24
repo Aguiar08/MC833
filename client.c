@@ -16,7 +16,7 @@
 
 #define PORT "3490" // the port client will be connecting to 
 
-#define MAXDATASIZE 100 // max number of bytes we can get at once 
+#define MAXDATASIZE 1024 // max number of bytes we can get at once 
 
 void send_message(int numbytes, int sockfd, char buf[MAXDATASIZE]){
 
@@ -104,7 +104,8 @@ int main(int argc, char *argv[])
 	while(strcmp(entry, out) != 0) {
 		if (strcmp(entry, "/help") == 0) {
 			printf("Comandos: \n");
-			printf("\tinsert : inserir usuario novo\n");
+			printf("\tinsert {dados}: inserir usuario novo\n");
+			printf("\t\temail;nome;sobrenome;residencia;formacaoacademica;anodeformatura;habilidades\n");
 			printf("\tall : retornar todos os usuarios\n");
 			printf("\temail : retornar um usuario especifico\n");
 			printf("\tcourse : retornar todos os usuarios formados em um determinado curso\n");
@@ -123,8 +124,8 @@ int main(int argc, char *argv[])
 
 		if(strcmp(entry,"insert") == 0){
 			char aux[MAXDATASIZE];
-			printf("client: Insira o email: ");
-			scanf("%s", &aux);
+			fgets(aux, MAXDATASIZE, stdin);
+			memmove(aux, aux+1, strlen(aux));
 			send_message(numbytes, sockfd, aux);
 		}
 
