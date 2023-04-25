@@ -26,12 +26,13 @@ void send_message(int numbytes, int sockfd, char buf[MAXDATASIZE]){
     printf("client: sent '%s'\n", buf);
 }
 
-void receive_message(int numbytes, int sockfd, char buf[MAXDATASIZE]){
+char* receive_message(int numbytes, int sockfd, char buf[MAXDATASIZE]){
     if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
         perror("recv");
         exit(1);
     }
 	printf("client: received '%s'\n",buf);
+	return buf;
 }
 
 // get sockaddr, IPv4 or IPv6:
@@ -232,9 +233,21 @@ int main(int argc, char *argv[])
 			send_message(numbytes, sockfd, entry);
 			send_message(numbytes, sockfd, aux);
 
+			if(strcmp(receive_message(numbytes, sockfd, buf),"error")==0 || strcmp(receive_message(numbytes, sockfd, buf),"end")==0){
+				printf("client: Insira o comando: ");
+				scanf("%s", &entry);
+				continue;
+			}
+			else{
+				while(1){
+					bzero(buf, MAXDATASIZE);
+					if(strcmp(receive_message(numbytes, sockfd, buf),"end")==0){
+						break;
+					}
+				}
+			}
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
-		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
