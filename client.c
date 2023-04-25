@@ -118,23 +118,151 @@ int main(int argc, char *argv[])
 			continue;
 		}
 
-		//================ SEND ==================
-
-		send_message(numbytes, sockfd, entry);
-
-		if(strcmp(entry,"insert") == 0){
+		if(strcmp(entry, "insert")==0){
 			char aux[MAXDATASIZE];
 			fgets(aux, MAXDATASIZE, stdin);
+			memmove(aux, aux+1, strlen(aux));
+			aux[strlen(aux)-1] = '\0';
+			if(strlen(aux) == 0){
+				printf("client: Comando inválido\n");
+				printf("client: Insira o comando: ");
+				scanf("%s", &entry);
+				continue;
+			}
+			send_message(numbytes, sockfd, entry);
 			send_message(numbytes, sockfd, aux);
-		}
 
-		//============ RECEIVE ====================
-
-		bzero(buf, MAXDATASIZE);
-		receive_message(numbytes, sockfd, buf);
+			bzero(buf, MAXDATASIZE);
+			receive_message(numbytes, sockfd, buf);
 		
-		printf("client: Insira o comando: ");
-		scanf("%s", &entry);
+			printf("client: Insira o comando: ");
+			scanf("%s", &entry);
+		}
+		else if(strcmp(entry, "all")==0){
+			char aux[MAXDATASIZE];
+			fgets(aux, MAXDATASIZE, stdin);
+			memmove(aux, aux+1, strlen(aux));
+			aux[strlen(aux)-1] = '\0';
+			if(strlen(aux) == 0){
+				printf("client: Comando inválido\n");
+				printf("client: Insira o comando: ");
+				scanf("%s", &entry);
+				continue;
+			}
+			send_message(numbytes, sockfd, entry);
+			send_message(numbytes, sockfd, aux);
+
+			bzero(buf, MAXDATASIZE);
+			receive_message(numbytes, sockfd, buf);
+		
+			printf("client: Insira o comando: ");
+			scanf("%s", &entry);
+		}
+		else if(strcmp(entry, "email")==0){
+			char aux[MAXDATASIZE];
+			fgets(aux, MAXDATASIZE, stdin);
+			memmove(aux, aux+1, strlen(aux));
+			aux[strlen(aux)-1] = '\0';
+			if(strlen(aux) == 0){
+				printf("client: Comando inválido\n");
+				printf("client: Insira o comando: ");
+				scanf("%s", &entry);
+				continue;
+			}
+			send_message(numbytes, sockfd, entry);
+			send_message(numbytes, sockfd, aux);
+
+			bzero(buf, MAXDATASIZE);
+			receive_message(numbytes, sockfd, buf);
+		
+			printf("client: Insira o comando: ");
+			scanf("%s", &entry);
+		}
+		else if(strcmp(entry, "course")==0){
+			char aux[MAXDATASIZE];
+			fgets(aux, MAXDATASIZE, stdin);
+			memmove(aux, aux+1, strlen(aux));
+			aux[strlen(aux)-1] = '\0';
+			if(strlen(aux) == 0){
+				printf("client: Comando inválido\n");
+				printf("client: Insira o comando: ");
+				scanf("%s", &entry);
+				continue;
+			}
+			send_message(numbytes, sockfd, entry);
+			send_message(numbytes, sockfd, aux);
+
+			bzero(buf, MAXDATASIZE);
+			receive_message(numbytes, sockfd, buf);
+		
+			printf("client: Insira o comando: ");
+			scanf("%s", &entry);
+		}
+		else if(strcmp(entry, "skill")==0){
+			char aux[MAXDATASIZE];
+			fgets(aux, MAXDATASIZE, stdin);
+			memmove(aux, aux+1, strlen(aux));
+			aux[strlen(aux)-1] = '\0';
+			if(strlen(aux) == 0){
+				printf("client: Comando inválido\n");
+				printf("client: Insira o comando: ");
+				scanf("%s", &entry);
+				continue;
+			}
+			send_message(numbytes, sockfd, entry);
+			send_message(numbytes, sockfd, aux);
+
+			bzero(buf, MAXDATASIZE);
+			receive_message(numbytes, sockfd, buf);
+		
+			printf("client: Insira o comando: ");
+			scanf("%s", &entry);
+		}
+		else if(strcmp(entry, "year")==0){
+			char aux[MAXDATASIZE];
+			fgets(aux, MAXDATASIZE, stdin);
+			memmove(aux, aux+1, strlen(aux));
+			aux[strlen(aux)-1] = '\0';
+			if(strlen(aux) == 0){
+				printf("client: Comando inválido\n");
+				printf("client: Insira o comando: ");
+				scanf("%s", &entry);
+				continue;
+			}
+			send_message(numbytes, sockfd, entry);
+			send_message(numbytes, sockfd, aux);
+
+			bzero(buf, MAXDATASIZE);
+			receive_message(numbytes, sockfd, buf);
+		
+			printf("client: Insira o comando: ");
+			scanf("%s", &entry);
+		}
+		else if(strcmp(entry, "remove")==0){
+			char aux[MAXDATASIZE];
+			fgets(aux, MAXDATASIZE, stdin);
+			memmove(aux, aux+1, strlen(aux));
+			aux[strlen(aux)-1] = '\0';
+			if(strlen(aux) == 0){
+				printf("client: Comando inválido\n");
+				printf("client: Insira o comando: ");
+				scanf("%s", &entry);
+				continue;
+			}
+			send_message(numbytes, sockfd, entry);
+			send_message(numbytes, sockfd, aux);
+
+			bzero(buf, MAXDATASIZE);
+			receive_message(numbytes, sockfd, buf);
+		
+			printf("client: Insira o comando: ");
+			scanf("%s", &entry);
+		}
+		else{
+			printf("client: Comando inválido\n");
+			printf("client: Insira o comando: ");
+			scanf("%s", &entry);
+		}
 	}
 	close(sockfd);
 
