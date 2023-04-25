@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -56,7 +55,7 @@ void save_data(char* dados) {
         campo = strtok(NULL, ";");
         i++;
     }
-    char nome_arquivo[100];
+    char nome_arquivo[109];
     sprintf(nome_arquivo, "../users/%s.txt", email);
     arquivo = fopen(nome_arquivo, "a+");
     if(arquivo == NULL) {
@@ -74,7 +73,7 @@ void save_data(char* dados) {
     fclose(arquivo);
 }
 
-void send_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
+void send_message(int new_fd, char buf[MAXDATASIZE]){
 
     if (send(new_fd, buf, strlen(buf), 0) == -1) {
         perror("send");
@@ -329,6 +328,51 @@ int main(void) {
 
     printf("server: waiting for connections...\n");
 
+    while(1) {  // main accept() loop
+
+        sin_size = sizeof their_addr;
+        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+        if (new_fd == -1) {
+            perror("accept");
+            continue;
+        }
+
+        inet_ntop(their_addr.ss_family,
+            get_in_addr((struct sockaddr *)&their_addr),
+            s, sizeof s);
+        printf("server: got connection from %s\n", s);
+
+        if (!fork()) { // this is the child process
+            close(sockfd); // child doesn't need the listener
+            while(1){
+
+                //========== RECEIVE ===================
+                receive_message(numbytes, new_fd, buf);
+
+                if(strcmp(buf, "insert") == 0){
+                    char entry[MAXDATASIZE];
+                    bzero(entry, MAXDATASIZE);
+                    save_data(receive_message(numbytes, new_fd, entry));
+                    printf("server: Client saved in the database\n");
+                    send_message(new_fd, "Operation Successful");
+	            }
+                if(strcmp(buf, "") == 0){
+                    printf("server: Exiting connection from %s\n", s);
+                    send_message(new_fd, buf);
+                    break;
+	            }
+                else{
+                    //========== SEND ===================
+                    send_message(new_fd, buf);
+                }
+                bzero(buf, MAXDATASIZE);
+            }
+            close(new_fd);
+            exit(0);
+        }
+        close(new_fd);  // parent doesn't need this
+    }
+
     sin_size = sizeof their_addr;
     new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
     if (new_fd == -1) {
@@ -336,23 +380,23 @@ int main(void) {
         exit(1);
     }
 
-    while(1) {  // main accept() loop
+    // while(1) {  // main accept() loop
 
-        //========== RECEIVE ===================
-        bzero(buf, MAXDATASIZE);
-        receive_message(numbytes, new_fd, buf);
+    //     //========== RECEIVE ===================
+    //     bzero(buf, MAXDATASIZE);
+    //     receive_message(numbytes, new_fd, buf);
     
-        if(strcmp(buf, "insert") == 0){
-            char entry[MAXDATASIZE];
-            save_data(receive_message(numbytes, new_fd, entry));
-            char * buf = "server: Client saved in the database";
-	    }
+    //     if(strcmp(buf, "insert") == 0){
+    //         char entry[MAXDATASIZE];
+    //         save_data(receive_message(numbytes, new_fd, entry));
+    //         char * buf = "server: Client saved in the database";
+	//     }
 
-        //========== SEND ===================
+    //     //========== SEND ===================
 
-        send_message(numbytes, new_fd, buf);
-    }
-    close(sockfd);
+    //     send_message(numbytes, new_fd, buf);
+    // }
+    // close(sockfd);
 
     return 0;
 }
