@@ -18,11 +18,10 @@
 
 #define MAXDATASIZE 1024 // max number of bytes we can get at once 
 
-void save_data(char* dados) {
+int save_data(char* dados) {
     FILE* arquivo;
     char* campo;
     char email[100], nome[100], sobrenome[100], residencia[100], formacao[100], ano[5], habilidades[200];
-
     campo = strtok(dados, ";");
     int i = 0;
     while(campo != NULL) {
@@ -55,12 +54,17 @@ void save_data(char* dados) {
         campo = strtok(NULL, ";");
         i++;
     }
+    if(i<6){
+        printf("server: Missing data on insert\n");
+        return 0;
+    }
+    
     char nome_arquivo[109];
     sprintf(nome_arquivo, "../users/%s.txt", email);
     arquivo = fopen(nome_arquivo, "a+");
     if(arquivo == NULL) {
-        printf("Erro ao abrir o arquivo\n");
-        return;
+        printf("server: Open file error\n");
+        return 0;
     }
     
     fprintf(arquivo, "Email: %s\n", email);
@@ -68,9 +72,10 @@ void save_data(char* dados) {
     fprintf(arquivo, "Residência: %s\n", residencia);
     fprintf(arquivo, "Formação Acadêmica: %s\n", formacao);
     fprintf(arquivo, "Ano de Formatura: %s\n", ano);
-    fprintf(arquivo, "Habilidades: %s\n", habilidades);
+    fprintf(arquivo, "Habilidades: %s", habilidades);
 
     fclose(arquivo);
+    return 1;
 }
 
 void send_message(int new_fd, char buf[MAXDATASIZE]){
@@ -228,17 +233,20 @@ void get_all() {
     return;
 }
 
-void remove_profile(char* email) {
-    FILE *file = fopen(email, "r");
+int remove_profile(char* email) {
+    char nome_arquivo[109];
+    sprintf(nome_arquivo, "../users/%s.txt", email);
+    FILE *file = fopen(nome_arquivo, "r");
     if (file == NULL){
-        printf("Arquivo não encontrado!\n");
-        return;
+        printf("server: File not found\n");
+        return 0;
     }
-
-    if (remove(email) == 0) {
-        printf("Arquivo %s removido com sucesso!\n", email);
+    fclose(file);
+    if (remove(nome_arquivo) == 0) {
+        return 1;
     } else {
-        printf("Erro ao remover arquivo %s!\n", email);
+        printf("server: File remove error\n");
+        return 0;
     }
 }
 
@@ -352,18 +360,48 @@ int main(void) {
                 if(strcmp(buf, "insert") == 0){
                     char entry[MAXDATASIZE];
                     bzero(entry, MAXDATASIZE);
-                    save_data(receive_message(numbytes, new_fd, entry));
-                    printf("server: Client saved in the database\n");
-                    send_message(new_fd, "Operation Successful");
+                    if(save_data(receive_message(numbytes, new_fd, entry))){
+                        printf("server: Client saved in the database\n");
+                        send_message(new_fd, "Operation Successful");
+                    }
+                    else{
+                        send_message(new_fd, "Operation Failed"); 
+                    }
+                    
 	            }
-                if(strcmp(buf, "") == 0){
+                else if(strcmp(buf, "all") == 0){
+
+                }
+                else if(strcmp(buf, "email") == 0){
+
+                }
+                else if(strcmp(buf, "course") == 0){
+                    
+                }
+                else if(strcmp(buf, "skill") == 0){
+                    
+                }
+                else if(strcmp(buf, "year") == 0){
+                    
+                }
+                else if(strcmp(buf, "remove") == 0){
+                    char entry[MAXDATASIZE];
+                    bzero(entry, MAXDATASIZE);
+                    if(remove_profile(receive_message(numbytes, new_fd, entry))){
+                        printf("server: Client removed from the database\n");
+                        send_message(new_fd, "Operation Successful");
+                    }
+                    else{
+                        send_message(new_fd, "Operation Failed"); 
+                    }
+                }
+                else if(strcmp(buf, "") == 0){
                     printf("server: Exiting connection from %s\n", s);
-                    send_message(new_fd, buf);
                     break;
 	            }
                 else{
                     //========== SEND ===================
-                    send_message(new_fd, buf);
+                    send_message(new_fd, "error");
                 }
                 bzero(buf, MAXDATASIZE);
             }
