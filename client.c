@@ -125,7 +125,6 @@ int main(int argc, char *argv[])
 		if(strcmp(entry,"insert") == 0){
 			char aux[MAXDATASIZE];
 			fgets(aux, MAXDATASIZE, stdin);
-			memmove(aux, aux+1, strlen(aux));
 			send_message(numbytes, sockfd, aux);
 		}
 
@@ -141,4 +140,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
