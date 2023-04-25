@@ -72,7 +72,7 @@ int save_data(char* dados) {
     fprintf(arquivo, "Residência: %s\n", residencia);
     fprintf(arquivo, "Formação Acadêmica: %s\n", formacao);
     fprintf(arquivo, "Ano de Formatura: %s\n", ano);
-    fprintf(arquivo, "Habilidades: %s", habilidades);
+    fprintf(arquivo, "Habilidades: %s\n", habilidades);
 
     fclose(arquivo);
     return 1;
@@ -162,35 +162,48 @@ void get_profile_by_ability() {
 
 }
 
-void get_profile_by_year(int year) {
+int get_profile_by_year(char* year, int new_fd) {
     DIR *folder;
     struct dirent *entry;
 
-    folder = opendir(".");
+    folder = opendir("../users/.");
     if (folder == NULL) {
-        perror("Erro ao abrir pasta com os arquivos dos usuarios!\n");
-        return;
+        printf("server: Open folder error\n");
+        return 0;
     }
 
     while ((entry = readdir(folder)) != NULL) {
         if (entry->d_type == DT_REG) {
-            FILE *file = fopen(entry->d_name, "r");
+            char nome_arquivo[109];
+            sprintf(nome_arquivo, "../users/%s", entry->d_name);
+            FILE *file = fopen(nome_arquivo, "r");
             if (file == NULL) {
-                perror("Nao foi possivel abrir o arquivo!\n");
+                printf("server: Open file error\n");
+                printf("server: %s\n", nome_arquivo);
                 continue;
             }
 
             // ler o arquivo de texto
-            char buffer[1000];
+            char buffer[MAXDATASIZE];
+            char output[MAXDATASIZE];
             char *ano = NULL;
-            while (fgets(buffer, 1000, file) != NULL) {
-                if (strstr(buffer, "Ano de Formatura") != NULL) {
+            while (fgets(buffer, MAXDATASIZE, file) != NULL) {
+                if (strstr(buffer, "Email") != NULL) {
+                    strcpy(output,buffer);
+                }
+                else if (strstr(buffer, "Nome") != NULL) {
+                    strcat(output,buffer);
+                }
+                else if (strstr(buffer, "Formação Acadêmica") != NULL) {
+                    strcat(output,buffer);
+                }
+                else if (strstr(buffer, "Ano de Formatura") != NULL) {
                     ano = strchr(buffer, ':') + 2;
-                    ano[strlen(ano)-2] = '\0';
+                    ano[strlen(ano)-1] = '\0';
                 }
 
                 if (ano != NULL && strcmp(ano, year) == 0) {
-                    printf("%s", buffer);
+                    send_message(new_fd, output);
                 }
             }
 
@@ -199,7 +212,8 @@ void get_profile_by_year(int year) {
     }
 
     closedir(folder);
-    return;
+    send_message(new_fd, "end");
+    return 1;
 }
 
 void get_all() {
@@ -382,7 +396,14 @@ int main(void) {
                     
                 }
                 else if(strcmp(buf, "year") == 0){
-                    
+                    char entry[MAXDATASIZE];
+                    bzero(entry, MAXDATASIZE);
+                    if(get_profile_by_year(receive_message(numbytes, new_fd, entry), new_fd)){
+                        send_message(new_fd, "Operation Successful");
+                    }
+                    else{
+                        send_message(new_fd, "Operation Failed"); 
+                    }
                 }
                 else if(strcmp(buf, "remove") == 0){
                     char entry[MAXDATASIZE];
