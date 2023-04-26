@@ -194,8 +194,20 @@ int main(int argc, char *argv[])
 			send_message(numbytes, sockfd, aux);
 
 			bzero(buf, MAXDATASIZE);
-			receive_message(numbytes, sockfd, buf);
-		
+			char *msg = receive_message(numbytes, sockfd, buf);
+			if(strcmp(msg,"error")==0 || strcmp(msg,"end")==0){
+				printf("client: Insira o comando: ");
+				scanf("%s", &entry);
+				continue;
+			}
+			else{
+				while(1){
+					bzero(buf, MAXDATASIZE);
+					if(strcmp(receive_message(numbytes, sockfd, buf),"end")==0){
+						break;
+					}
+				}
+			}
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
@@ -214,8 +226,20 @@ int main(int argc, char *argv[])
 			send_message(numbytes, sockfd, aux);
 
 			bzero(buf, MAXDATASIZE);
-			receive_message(numbytes, sockfd, buf);
-		
+			char *msg = receive_message(numbytes, sockfd, buf);
+			if(strcmp(msg,"error")==0 || strcmp(msg,"end")==0){
+				printf("client: Insira o comando: ");
+				scanf("%s", &entry);
+				continue;
+			}
+			else{
+				while(1){
+					bzero(buf, MAXDATASIZE);
+					if(strcmp(receive_message(numbytes, sockfd, buf),"end")==0){
+						break;
+					}
+				}
+			}
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
@@ -233,7 +257,9 @@ int main(int argc, char *argv[])
 			send_message(numbytes, sockfd, entry);
 			send_message(numbytes, sockfd, aux);
 
-			if(strcmp(receive_message(numbytes, sockfd, buf),"error")==0 || strcmp(receive_message(numbytes, sockfd, buf),"end")==0){
+			bzero(buf, MAXDATASIZE);
+			char *msg = receive_message(numbytes, sockfd, buf);
+			if(strcmp(msg,"error")==0 || strcmp(msg,"end")==0){
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
@@ -246,8 +272,6 @@ int main(int argc, char *argv[])
 					}
 				}
 			}
-			bzero(buf, MAXDATASIZE);
-			receive_message(numbytes, sockfd, buf);
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
