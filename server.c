@@ -445,8 +445,8 @@ int main(void) {
                     
 	            }
                 else if(strcmp(buf, "all") == 0){
-			if (!get_all(new_fd))
-				send_message(new_fd, "Operation Failed");
+                    if (!get_all(new_fd))
+                        send_message(new_fd, "Operation Failed");
                 }
                 else if(strcmp(buf, "email") == 0){
                     char entry[MAXDATASIZE];
