@@ -49,7 +49,7 @@ int save_data(char* dados) {
                 break;
             default:
                 printf("Dados inválidos\n");
-                return;
+                return 0;
         }
         campo = strtok(NULL, ";");
         i++;
@@ -168,8 +168,50 @@ int get_profile_by_course(char* course, int new_fd) {
     return 1;
 }
 
-void get_profile_by_ability() {
+int get_profile_by_skill(char* skill, int new_fd) {
+    DIR *folder;
+    struct dirent *entry;
 
+    folder = opendir("../users/.");
+    if (folder == NULL){
+        printf("server: Open folder error\n");
+        return 0;
+    }
+
+    while ((entry = readdir(folder)) != NULL) {
+        if (entry->d_type == DT_REG) {
+            char nome_arquivo[109];
+            sprintf(nome_arquivo, "../users/%s", entry->d_name);
+            FILE *file = fopen(nome_arquivo, "r");
+            if (file == NULL) {
+                printf("server: open file error\n");
+                printf("server: %s\n", nome_arquivo);
+                continue;
+            }
+
+            char buffer[MAXDATASIZE];
+            char output[MAXDATASIZE];
+            while (fgets(buffer, MAXDATASIZE, file) != NULL) {
+                if (strstr(buffer, "Email") != NULL) {
+                    strcpy(output,buffer);
+                }
+                else if (strstr(buffer, "Nome") != NULL) {
+                    strcat(output,buffer);
+                }
+                else if (strstr(buffer, "Habilidades") != NULL) {
+                    if (strstr(buffer, skill) != NULL) {
+                        send_message(new_fd, output);
+                    }
+                }
+            }
+
+            fclose(file);
+        }
+    }
+
+    closedir(folder);
+    send_message(new_fd, "end");
+    return 1;
 }
 
 int get_profile_by_year(char* year, int new_fd) {
@@ -226,13 +268,13 @@ int get_profile_by_year(char* year, int new_fd) {
     return 1;
 }
 
-int get_all() {
+int get_all(int new_fd) {
     DIR *folder;
     struct dirent *entry;
 
     folder = opendir("../users/.");
     if (folder == NULL) {
-        printf("server: unable to open folder with user files!\n");
+        printf("server: Open folder error\n");
         return 0;
     }
 
@@ -242,19 +284,27 @@ int get_all() {
             sprintf(nome_arquivo, "../users/%s", entry->d_name);
             FILE *file = fopen(nome_arquivo, "r");
             if (file == NULL) {
-                printf("server: open file error!\n");
+                printf("server: open file error\n");
                 continue;
             }
 
             char buffer[MAXDATASIZE];
+            char output[MAXDATASIZE];
             while (fgets(buffer, MAXDATASIZE, file) != NULL)
-                printf("%s", buffer);
+                if (strstr(buffer, "Email") != NULL) {
+                    strcpy(output,buffer);
+                } else {
+                    strcat(output, buffer);
+                }
+
+            send_message(new_fd, output);
 
             fclose(file);
         }
     }
 
     closedir(folder);
+    send_message(new_fd, "end");
     return 1;
 }
 
@@ -395,7 +445,8 @@ int main(void) {
                     
 	            }
                 else if(strcmp(buf, "all") == 0){
-			        get_all();
+		    if (!get_all(new_fd))
+                        send_message(new_fd, "Operation Failed");
                 }
                 else if(strcmp(buf, "email") == 0){
                     char entry[MAXDATASIZE];
@@ -407,19 +458,20 @@ int main(void) {
                 else if(strcmp(buf, "course") == 0){
                     char entry[MAXDATASIZE];
                     bzero(entry, MAXDATASIZE);
-                    if(!get_profile_by_course(receive_message(numbytes, new_fd, entry), new_fd)){
-                        send_message(new_fd, "Operation Failed"); 
-                    }
+                    if(!get_profile_by_course(receive_message(numbytes, new_fd, entry), new_fd))
+                        send_message(new_fd, "Operation Failed");
                 }
                 else if(strcmp(buf, "skill") == 0){
-                    
+                    char entry[MAXDATASIZE];
+                    bzero(entry, MAXDATASIZE);
+                    if(!get_profile_by_skill(receive_message(numbytes, new_fd, entry), new_fd))
+                        send_message(new_fd, "Operation Failed"); 
                 }
                 else if(strcmp(buf, "year") == 0){
                     char entry[MAXDATASIZE];
                     bzero(entry, MAXDATASIZE);
-                    if(!get_profile_by_year(receive_message(numbytes, new_fd, entry), new_fd)){
-                        send_message(new_fd, "Operation Failed"); 
-                    }
+                    if(!get_profile_by_year(receive_message(numbytes, new_fd, entry), new_fd))
+                        send_message(new_fd, "Operation Failed");
                 }
                 else if(strcmp(buf, "remove") == 0){
                     char entry[MAXDATASIZE];
