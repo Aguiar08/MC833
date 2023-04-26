@@ -140,22 +140,23 @@ int main(int argc, char *argv[])
 			scanf("%s", &entry);
 		}
 		else if(strcmp(entry, "all")==0){
-			char aux[MAXDATASIZE];
-			fgets(aux, MAXDATASIZE, stdin);
-			memmove(aux, aux+1, strlen(aux));
-			aux[strlen(aux)-1] = '\0';
-			if(strlen(aux) == 0){
-				printf("client: Comando inválido\n");
+			send_message(numbytes, sockfd, entry);
+			bzero(buf, MAXDATASIZE);
+			char *msg = receive_message(numbytes, sockfd, buf);
+			if(strcmp(msg,"error") == 0 || strcmp(msg,"end") == 0){
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
-			send_message(numbytes, sockfd, entry);
-			send_message(numbytes, sockfd, aux);
-
+			else{
+				while(1){
+					bzero(buf, MAXDATASIZE);
+					if(!strcmp(msg,"end"))
+						break;
+				}
+			}
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
-		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
@@ -224,22 +225,22 @@ int main(int argc, char *argv[])
 			}
 			send_message(numbytes, sockfd, entry);
 			send_message(numbytes, sockfd, aux);
-
 			bzero(buf, MAXDATASIZE);
 			char *msg = receive_message(numbytes, sockfd, buf);
-			if(strcmp(msg,"error")==0 || strcmp(msg,"end")==0){
+			if(strcmp(msg,"error") == 0 || strcmp(msg,"end") == 0) {
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
-			}
-			else{
-				while(1){
+			} else {
+				while(1) {
 					bzero(buf, MAXDATASIZE);
-					if(strcmp(receive_message(numbytes, sockfd, buf),"end")==0){
+					if(strcmp(msg,"end")==0)
 						break;
-					}
 				}
 			}
+			bzero(buf, MAXDATASIZE);
+			receive_message(numbytes, sockfd, buf);
+		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
