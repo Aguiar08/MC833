@@ -95,36 +95,38 @@ char* receive_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
     return buf;
 }
 
-void get_profile(char* email) {
-    FILE *file = fopen(email, "r");
+int get_profile(char* email, int new_fd) {
+    char nome_arquivo[109];
+    sprintf(nome_arquivo, "../users/%s.txt", email);
+    FILE *file = fopen(nome_arquivo, "r");
     if (file == NULL){
-        printf("Arquivo não encontrado!\n");
-        return;
+        printf("server: open file error!\n");
+        return 0;
     }
 
     // char[6][] carac = {"Email", "Nome", "Residencia", "Formacao Academica", "Ano de Formatura", "Habilidades"}
 
-    char linha[100];
-    char *result;
+    char linha[MAXDATASIZE];
+    char result[MAXDATASIZE];
+    bzero(result, MAXDATASIZE);
+    int i = 0;
     while (!feof(file)){
-        result = fgets(linha, 100, file);
-        if (result)
-            printf("%s", result);
-        else {
-            printf("Erro ao ler arquivo!\n");
-            return;
-        }
+        fgets(linha, MAXDATASIZE, file);
+        if(i<6) strcat(result, linha);
+        i++;
     }
     fclose(file);
+    send_message(new_fd, result);
+    return 1;
 }
 
-int get_profile_by_course(char* course) {
+int get_profile_by_course(char* course, int new_fd) {
     DIR *folder;
     struct dirent *entry;
 
     folder = opendir("../users/.");
     if (folder == NULL) {
-        printf("server: unable to open folder with user files!\n");
+        printf("server: open folder error!\n");
         return 0;
     }
 
@@ -148,19 +150,12 @@ int get_profile_by_course(char* course) {
                     curso[strlen(curso)-1] = '\0';
                 } else if (strstr(buffer, "Email") != NULL) {
                     strcpy(result, buffer);
-                } else {
+                } else if (strstr(buffer, "Nome") != NULL) {
                     strcat(result, buffer);
                 }
                 
                 if (curso != NULL && strcmp(curso, course) == 0) {
-                    printf("%s", result);
-                    printf("%s\n", buffer);
-                    char l[200];
-                    while (!feof(file)) {
-                        char *linha = fgets(l, 200, file);
-                        if (linha) printf("%s", linha);
-                    }
-                    printf("\n");
+                    send_message(new_fd, result);
                 }
             }
 
@@ -169,6 +164,7 @@ int get_profile_by_course(char* course) {
     }
 
     closedir(folder);
+    send_message(new_fd, "end");
     return 1;
 }
 
@@ -399,13 +395,21 @@ int main(void) {
                     
 	            }
                 else if(strcmp(buf, "all") == 0){
-			get_all();
+			        get_all();
                 }
                 else if(strcmp(buf, "email") == 0){
-
+                    char entry[MAXDATASIZE];
+                    bzero(entry, MAXDATASIZE);
+                    if(!get_profile(receive_message(numbytes, new_fd, entry), new_fd)){
+                        send_message(new_fd, "Operation Failed"); 
+                    }
                 }
                 else if(strcmp(buf, "course") == 0){
-                   	get_profile_by_course(receive_message(numbytes, new_fd, buf)); 
+                    char entry[MAXDATASIZE];
+                    bzero(entry, MAXDATASIZE);
+                    if(!get_profile_by_course(receive_message(numbytes, new_fd, entry), new_fd)){
+                        send_message(new_fd, "Operation Failed"); 
+                    }
                 }
                 else if(strcmp(buf, "skill") == 0){
                     
@@ -413,10 +417,7 @@ int main(void) {
                 else if(strcmp(buf, "year") == 0){
                     char entry[MAXDATASIZE];
                     bzero(entry, MAXDATASIZE);
-                    if(get_profile_by_year(receive_message(numbytes, new_fd, entry), new_fd)){
-                        send_message(new_fd, "Operation Successful");
-                    }
-                    else{
+                    if(!get_profile_by_year(receive_message(numbytes, new_fd, entry), new_fd)){
                         send_message(new_fd, "Operation Failed"); 
                     }
                 }
