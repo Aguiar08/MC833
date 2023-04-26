@@ -118,35 +118,49 @@ void get_profile(char* email) {
     fclose(file);
 }
 
-void get_profile_by_course(char* course) {
+int get_profile_by_course(char* course) {
     DIR *folder;
     struct dirent *entry;
 
-    folder = opendir(".");
+    folder = opendir("../users/.");
     if (folder == NULL) {
-        perror("Erro ao abrir pasta com os arquivos dos usuarios!\n");
-        return;
+        printf("server: unable to open folder with user files!\n");
+        return 0;
     }
 
     while ((entry = readdir(folder)) != NULL) {
         if (entry->d_type == DT_REG) {
-            FILE *file = fopen(entry->d_name, "r");
+            char nome_arquivo[109];
+            sprintf(nome_arquivo, "../users/%s", entry->d_name);
+            FILE *file = fopen(nome_arquivo, "r");
             if (file == NULL) {
-                perror("Nao foi possivel abrir o arquivo!\n");
+                printf("server: open file error!\n");
                 continue;
             }
 
             // ler o arquivo de texto
-            char buffer[1000];
+            char buffer[MAXDATASIZE];
             char *curso = NULL;
-            while (fgets(buffer, 1000, file) != NULL) {
-                if (strstr(buffer, "Formacao Academica") != NULL) {
+            char result[MAXDATASIZE];
+            while (fgets(buffer, MAXDATASIZE, file) != NULL) {
+                if (strstr(buffer, "Formação Acadêmica") != NULL) {
                     curso = strchr(buffer, ':') + 2;
-                    curso[strlen(curso)-2] = '\0';
+                    curso[strlen(curso)-1] = '\0';
+                } else if (strstr(buffer, "Email") != NULL) {
+                    strcpy(result, buffer);
+                } else {
+                    strcat(result, buffer);
                 }
-
+                
                 if (curso != NULL && strcmp(curso, course) == 0) {
-                    printf("%s", buffer);
+                    printf("%s", result);
+                    printf("%s\n", buffer);
+                    char l[200];
+                    while (!feof(file)) {
+                        char *linha = fgets(l, 200, file);
+                        if (linha) printf("%s", linha);
+                    }
+                    printf("\n");
                 }
             }
 
@@ -155,7 +169,7 @@ void get_profile_by_course(char* course) {
     }
 
     closedir(folder);
-    return;
+    return 1;
 }
 
 void get_profile_by_ability() {
@@ -216,35 +230,36 @@ int get_profile_by_year(char* year, int new_fd) {
     return 1;
 }
 
-void get_all() {
+int get_all() {
     DIR *folder;
     struct dirent *entry;
 
-    folder = opendir(".");
+    folder = opendir("../users/.");
     if (folder == NULL) {
-        perror("Erro ao abrir pasta com os arquivos dos usuarios!\n");
-        return;
+        printf("server: unable to open folder with user files!\n");
+        return 0;
     }
 
     while ((entry = readdir(folder)) != NULL) {
         if (entry->d_type == DT_REG) {
-            FILE *file = fopen(entry->d_name, "r");
+            char nome_arquivo[109];
+            sprintf(nome_arquivo, "../users/%s", entry->d_name);
+            FILE *file = fopen(nome_arquivo, "r");
             if (file == NULL) {
-                perror("Nao foi possivel abrir o arquivo!\n");
+                printf("server: open file error!\n");
                 continue;
             }
 
-            char buffer[1000];
-            while (fgets(buffer, 1000, file) != NULL) {
+            char buffer[MAXDATASIZE];
+            while (fgets(buffer, MAXDATASIZE, file) != NULL)
                 printf("%s", buffer);
-            }
 
             fclose(file);
         }
     }
 
     closedir(folder);
-    return;
+    return 1;
 }
 
 int remove_profile(char* email) {
@@ -384,13 +399,13 @@ int main(void) {
                     
 	            }
                 else if(strcmp(buf, "all") == 0){
-
+			get_all();
                 }
                 else if(strcmp(buf, "email") == 0){
 
                 }
                 else if(strcmp(buf, "course") == 0){
-                    
+                   	get_profile_by_course(receive_message(numbytes, new_fd, buf)); 
                 }
                 else if(strcmp(buf, "skill") == 0){
                     
