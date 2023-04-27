@@ -202,6 +202,8 @@ int get_profile_by_skill(char* skill, int new_fd) {
         return 0;
     }
 
+    char * final = (char *) malloc(1);
+    *final = '\0'; 
     while ((entry = readdir(folder)) != NULL) {
         if (entry->d_type == DT_REG) {
             char nome_arquivo[109];
@@ -224,12 +226,8 @@ int get_profile_by_skill(char* skill, int new_fd) {
                 }
                 else if (strstr(buffer, "Habilidades") != NULL) {
                     if (strstr(buffer, skill) != NULL) {
-                        int len;
-                        len = strlen(output);
-                        if (send_message(new_fd, output, &len) == -1) {
-                            perror("send_message");
-                            printf("We only sent %d bytes because of the error!\n", len);
-                        } 
+                        final = (char *)realloc(final, strlen(final)+strlen(output)+1);
+                        strcat(final,output);
                     }
                 }
             }
@@ -240,8 +238,8 @@ int get_profile_by_skill(char* skill, int new_fd) {
 
     closedir(folder);
     int len;
-    len = strlen("end");
-    if (send_message(new_fd, "end", &len) == -1) {
+    len = strlen(final);
+    if (send_message(new_fd, final, &len) == -1) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
