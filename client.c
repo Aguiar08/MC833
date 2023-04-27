@@ -195,7 +195,8 @@ int main(int argc, char *argv[])
 			send_message(numbytes, sockfd, aux);
 
 			bzero(buf, MAXDATASIZE);
-			char *msg = receive_message(numbytes, sockfd, buf);
+			receive_message(numbytes, sockfd, buf);
+			
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
@@ -212,19 +213,6 @@ int main(int argc, char *argv[])
 			}
 			send_message(numbytes, sockfd, entry);
 			send_message(numbytes, sockfd, aux);
-			bzero(buf, MAXDATASIZE);
-			char *msg = receive_message(numbytes, sockfd, buf);
-			if(strcmp(msg,"error") == 0 || strcmp(msg,"end") == 0) {
-				printf("client: Insira o comando: ");
-				scanf("%s", &entry);
-				continue;
-			} else {
-				while(1) {
-					bzero(buf, MAXDATASIZE);
-					if(strcmp(msg,"end")==0)
-						break;
-				}
-			}
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
 		
