@@ -26,8 +26,8 @@ void send_message(int numbytes, int sockfd, char buf[MAXDATASIZE]){
     printf("client: sent '%s'\n", buf);
 }
 
-char* receive_message(int numbytes, int sockfd, char buf[MAXDATASIZE]){
-    if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+char* receive_message(int numbytes, int sockfd, char* buf){
+    if ((numbytes = recv(sockfd, buf, strlen(buf)-1, 0)) == -1) {
         perror("recv");
         exit(1);
     }
@@ -196,19 +196,6 @@ int main(int argc, char *argv[])
 
 			bzero(buf, MAXDATASIZE);
 			char *msg = receive_message(numbytes, sockfd, buf);
-			if(strcmp(msg,"error")==0 || strcmp(msg,"end")==0){
-				printf("client: Insira o comando: ");
-				scanf("%s", &entry);
-				continue;
-			}
-			else{
-				while(1){
-					bzero(buf, MAXDATASIZE);
-					if(strcmp(receive_message(numbytes, sockfd, buf),"end")==0){
-						break;
-					}
-				}
-			}
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
