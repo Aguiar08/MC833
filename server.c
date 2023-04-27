@@ -78,13 +78,22 @@ int save_data(char* dados) {
     return 1;
 }
 
-void send_message(int new_fd, char buf[MAXDATASIZE]){
+int send_message(int s, char *buf, int *len){
+    int total = 0;        // how many bytes we've sent
+    int bytesleft = *len; // how many we have left to send
+    int n;
 
-    if (send(new_fd, buf, strlen(buf), 0) == -1) {
-        perror("send");
+    while(total < *len) {
+        n = send(s, buf+total, bytesleft, 0);
+        if (n == -1) { break; }
+        total += n;
+        bytesleft -= n;
     }
-    printf("server: sent '%s'\n", buf);
-}
+
+    *len = total; // return number actually sent here
+    printf("server: sent %s\n", buf);
+    return n==-1?-1:0; // return -1 on failure, 0 on success
+} 
 
 char* receive_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
     if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
@@ -116,7 +125,12 @@ int get_profile(char* email, int new_fd) {
         i++;
     }
     fclose(file);
-    send_message(new_fd, result);
+    int len;
+    len = strlen(result);
+    if (send_message(new_fd, result, &len) == -1) {
+        perror("send_message");
+        printf("We only sent %d bytes because of the error!\n", len);
+    } 
     return 1;
 }
 
@@ -130,6 +144,8 @@ int get_profile_by_course(char* course, int new_fd) {
         return 0;
     }
 
+    char * final = (char *) malloc(1);
+    *final = '\0'; 
     while ((entry = readdir(folder)) != NULL) {
         if (entry->d_type == DT_REG) {
             char nome_arquivo[109];
@@ -143,11 +159,12 @@ int get_profile_by_course(char* course, int new_fd) {
             // ler o arquivo de texto
             char buffer[MAXDATASIZE];
             char *curso = NULL;
-            char result[MAXDATASIZE];
+            char result [MAXDATASIZE];
             while (fgets(buffer, MAXDATASIZE, file) != NULL) {
                 if (strstr(buffer, "Formação Acadêmica") != NULL) {
                     curso = strchr(buffer, ':') + 2;
                     curso[strlen(curso)-1] = '\0';
+                    
                 } else if (strstr(buffer, "Email") != NULL) {
                     strcpy(result, buffer);
                 } else if (strstr(buffer, "Nome") != NULL) {
@@ -155,7 +172,8 @@ int get_profile_by_course(char* course, int new_fd) {
                 }
                 
                 if (curso != NULL && strcmp(curso, course) == 0) {
-                    send_message(new_fd, result);
+                    final = (char *)realloc(final, strlen(final)+strlen(result)+1);
+                    strcat(final,result);
                 }
             }
 
@@ -164,7 +182,13 @@ int get_profile_by_course(char* course, int new_fd) {
     }
 
     closedir(folder);
-    send_message(new_fd, "end");
+    int len;
+    len = strlen(final);
+    if (send_message(new_fd, final, &len) == -1) {
+        perror("send_message");
+        printf("We only sent %d bytes because of the error!\n", len);
+    } 
+    free(final);
     return 1;
 }
 
@@ -200,7 +224,12 @@ int get_profile_by_skill(char* skill, int new_fd) {
                 }
                 else if (strstr(buffer, "Habilidades") != NULL) {
                     if (strstr(buffer, skill) != NULL) {
-                        send_message(new_fd, output);
+                        int len;
+                        len = strlen(output);
+                        if (send_message(new_fd, output, &len) == -1) {
+                            perror("send_message");
+                            printf("We only sent %d bytes because of the error!\n", len);
+                        } 
                     }
                 }
             }
@@ -210,7 +239,12 @@ int get_profile_by_skill(char* skill, int new_fd) {
     }
 
     closedir(folder);
-    send_message(new_fd, "end");
+    int len;
+    len = strlen("end");
+    if (send_message(new_fd, "end", &len) == -1) {
+        perror("send_message");
+        printf("We only sent %d bytes because of the error!\n", len);
+    } 
     return 1;
 }
 
@@ -255,7 +289,12 @@ int get_profile_by_year(char* year, int new_fd) {
                 }
 
                 if (ano != NULL && strcmp(ano, year) == 0) {
-                    send_message(new_fd, output);
+                    int len;
+                    len = strlen(output);
+                    if (send_message(new_fd, output, &len) == -1) {
+                        perror("send_message");
+                        printf("We only sent %d bytes because of the error!\n", len);
+                    } 
                 }
             }
 
@@ -264,7 +303,12 @@ int get_profile_by_year(char* year, int new_fd) {
     }
 
     closedir(folder);
-    send_message(new_fd, "end");
+    int len;
+    len = strlen("end");
+    if (send_message(new_fd, "end", &len) == -1) {
+        perror("send_message");
+        printf("We only sent %d bytes because of the error!\n", len);
+    } 
     return 1;
 }
 
@@ -297,14 +341,24 @@ int get_all(int new_fd) {
                     strcat(output, buffer);
                 }
 
-            send_message(new_fd, output);
+            int len;
+            len = strlen(output);
+            if (send_message(new_fd, output, &len) == -1) {
+                perror("send_message");
+                printf("We only sent %d bytes because of the error!\n", len);
+            } 
 
             fclose(file);
         }
     }
 
     closedir(folder);
-    send_message(new_fd, "end");
+    int len;
+    len = strlen("end");
+    if (send_message(new_fd, "end", &len) == -1) {
+        perror("send_message");
+        printf("We only sent %d bytes because of the error!\n", len);
+    } 
     return 1;
 }
 
@@ -437,51 +491,100 @@ int main(void) {
                     bzero(entry, MAXDATASIZE);
                     if(save_data(receive_message(numbytes, new_fd, entry))){
                         printf("server: Client saved in the database\n");
-                        send_message(new_fd, "Operation Successful");
+                        int len;
+                        len = strlen("Operation Successful");
+                        if (send_message(new_fd, "Operation Successful", &len) == -1) {
+                            perror("send_message");
+                            printf("We only sent %d bytes because of the error!\n", len);
+                        } 
                     }
                     else{
-                        send_message(new_fd, "Operation Failed"); 
+                        int len;
+                        len = strlen("Operation Failed");
+                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                            perror("send_message");
+                            printf("We only sent %d bytes because of the error!\n", len);
+                        }
                     }
                     
 	            }
                 else if(strcmp(buf, "all") == 0){
-                    if (!get_all(new_fd))
-                        send_message(new_fd, "Operation Failed");
+                    if (!get_all(new_fd)){
+                        int len;
+                        len = strlen("Operation Failed");
+                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                            perror("send_message");
+                            printf("We only sent %d bytes because of the error!\n", len);
+                        }
+                    }
                 }
                 else if(strcmp(buf, "email") == 0){
                     char entry[MAXDATASIZE];
                     bzero(entry, MAXDATASIZE);
                     if(!get_profile(receive_message(numbytes, new_fd, entry), new_fd)){
-                        send_message(new_fd, "Operation Failed"); 
+                        int len;
+                        len = strlen("Operation Failed");
+                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                            perror("send_message");
+                            printf("We only sent %d bytes because of the error!\n", len);
+                        } 
                     }
                 }
                 else if(strcmp(buf, "course") == 0){
                     char entry[MAXDATASIZE];
                     bzero(entry, MAXDATASIZE);
-                    if(!get_profile_by_course(receive_message(numbytes, new_fd, entry), new_fd))
-                        send_message(new_fd, "Operation Failed");
+                    if(!get_profile_by_course(receive_message(numbytes, new_fd, entry), new_fd)){
+                        int len;
+                        len = strlen("Operation Failed");
+                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                            perror("send_message");
+                            printf("We only sent %d bytes because of the error!\n", len);
+                        }
+                    }
                 }
                 else if(strcmp(buf, "skill") == 0){
                     char entry[MAXDATASIZE];
                     bzero(entry, MAXDATASIZE);
-                    if(!get_profile_by_skill(receive_message(numbytes, new_fd, entry), new_fd))
-                        send_message(new_fd, "Operation Failed"); 
+                    if(!get_profile_by_skill(receive_message(numbytes, new_fd, entry), new_fd)){
+                        int len;
+                        len = strlen("Operation Failed");
+                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                            perror("send_message");
+                            printf("We only sent %d bytes because of the error!\n", len);
+                        } 
+                    }
                 }
                 else if(strcmp(buf, "year") == 0){
                     char entry[MAXDATASIZE];
                     bzero(entry, MAXDATASIZE);
-                    if(!get_profile_by_year(receive_message(numbytes, new_fd, entry), new_fd))
-                        send_message(new_fd, "Operation Failed");
+                    if(!get_profile_by_year(receive_message(numbytes, new_fd, entry), new_fd)){
+                        int len;
+                        len = strlen("Operation Failed");
+                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                            perror("send_message");
+                            printf("We only sent %d bytes because of the error!\n", len);
+                        }
+                    }
                 }
                 else if(strcmp(buf, "remove") == 0){
                     char entry[MAXDATASIZE];
                     bzero(entry, MAXDATASIZE);
                     if(remove_profile(receive_message(numbytes, new_fd, entry))){
                         printf("server: Client removed from the database\n");
-                        send_message(new_fd, "Operation Successful");
+                        int len;
+                        len = strlen("Operation Successful");
+                        if (send_message(new_fd, "Operation Successful", &len) == -1) {
+                            perror("send_message");
+                            printf("We only sent %d bytes because of the error!\n", len);
+                        }
                     }
                     else{
-                        send_message(new_fd, "Operation Failed"); 
+                        int len;
+                        len = strlen("Operation Failed");
+                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                            perror("send_message");
+                            printf("We only sent %d bytes because of the error!\n", len);
+                        } 
                     }
                 }
                 else if(strcmp(buf, "") == 0){
@@ -490,7 +593,12 @@ int main(void) {
 	            }
                 else{
                     //========== SEND ===================
-                    send_message(new_fd, "error");
+                    int len;
+                    len = strlen("error");
+                    if (send_message(new_fd, "error", &len) == -1) {
+                        perror("send_message");
+                        printf("We only sent %d bytes because of the error!\n", len);
+                    }
                 }
                 bzero(buf, MAXDATASIZE);
             }
