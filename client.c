@@ -18,13 +18,21 @@
 
 #define MAXDATASIZE 1024 // max number of bytes we can get at once 
 
-void send_message(int numbytes, int sockfd, char buf[MAXDATASIZE]){
-
-    if (send(sockfd, buf, strlen(buf), 0) == -1) {
-        perror("send");
+int send_message(int s, char *buf, int *len){
+    int total = 0;        // how many bytes we've sent
+    int bytesleft = *len; // how many we have left to send
+    int n;
+    while(total < *len) {
+        n = send(s, buf+total, bytesleft, 0);
+        if (n == -1) { break; }
+        total += n;
+        bytesleft -= n;
     }
-    printf("client: sent '%s'\n", buf);
-}
+
+    *len = total; // return number actually sent here
+    printf("client: sent %s\n", buf);
+    return n==-1?-1:0; // return -1 on failure, 0 on success
+} 
 
 char* receive_message(int numbytes, int sockfd, char* buf){
     if ((numbytes = recv(sockfd, buf, strlen(buf)-1, 0)) == -1) {
@@ -106,7 +114,7 @@ int main(int argc, char *argv[])
 		if (strcmp(entry, "/help") == 0) {
 			printf("Comandos: \n");
 			printf("\tinsert {dados}: inserir usuario novo\n");
-			printf("\t\temail;nome;sobrenome;residencia;formacaoacademica;anodeformatura;habilidades\n");
+			printf("\t\t{dados}: email;nome;sobrenome;residencia;formacaoacademica;anodeformatura;habilidades\n");
 			printf("\tall : retornar todos os usuarios\n");
 			printf("\temail : retornar um usuario especifico\n");
 			printf("\tcourse : retornar todos os usuarios formados em um determinado curso\n");
@@ -122,16 +130,20 @@ int main(int argc, char *argv[])
 		if(strcmp(entry, "insert")==0){
 			char aux[MAXDATASIZE];
 			fgets(aux, MAXDATASIZE, stdin);
-			memmove(aux, aux+1, strlen(aux));
 			aux[strlen(aux)-1] = '\0';
+			strcat(entry, aux);
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
-			send_message(numbytes, sockfd, entry);
-			send_message(numbytes, sockfd, aux);
+			int len;
+            len = strlen(entry);
+            if (send_message(sockfd, entry, &len) == -1) {
+                perror("send_message");
+                printf("We only sent %d bytes because of the error!\n", len);
+            } 
 
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
@@ -140,39 +152,35 @@ int main(int argc, char *argv[])
 			scanf("%s", &entry);
 		}
 		else if(strcmp(entry, "all")==0){
-			send_message(numbytes, sockfd, entry);
-			bzero(buf, MAXDATASIZE);
-			char *msg = receive_message(numbytes, sockfd, buf);
-			if(strcmp(msg,"error") == 0 || strcmp(msg,"end") == 0){
-				printf("client: Insira o comando: ");
-				scanf("%s", &entry);
-				continue;
-			}
-			else{
-				while(1){
-					bzero(buf, MAXDATASIZE);
-					if(!strcmp(msg,"end"))
-						break;
-				}
-			}
+			int len;
+            len = strlen(entry);
+            if (send_message(sockfd, entry, &len) == -1) {
+                perror("send_message");
+                printf("We only sent %d bytes because of the error!\n", len);
+            } 
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
+		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
 		else if(strcmp(entry, "email")==0){
 			char aux[MAXDATASIZE];
 			fgets(aux, MAXDATASIZE, stdin);
-			memmove(aux, aux+1, strlen(aux));
 			aux[strlen(aux)-1] = '\0';
+			strcat(entry, aux);
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
-			send_message(numbytes, sockfd, entry);
-			send_message(numbytes, sockfd, aux);
+			int len;
+            len = strlen(entry);
+            if (send_message(sockfd, entry, &len) == -1) {
+                perror("send_message");
+                printf("We only sent %d bytes because of the error!\n", len);
+            } 
 
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
@@ -183,36 +191,45 @@ int main(int argc, char *argv[])
 		else if(strcmp(entry, "course")==0){
 			char aux[MAXDATASIZE];
 			fgets(aux, MAXDATASIZE, stdin);
-			memmove(aux, aux+1, strlen(aux));
 			aux[strlen(aux)-1] = '\0';
+			strcat(entry, aux);
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
-			send_message(numbytes, sockfd, entry);
-			send_message(numbytes, sockfd, aux);
+			int len;
+            len = strlen(entry);
+            if (send_message(sockfd, entry, &len) == -1) {
+                perror("send_message");
+                printf("We only sent %d bytes because of the error!\n", len);
+            } 
 
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
-			
+		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
 		else if(strcmp(entry, "skill")==0){
 			char aux[MAXDATASIZE];
 			fgets(aux, MAXDATASIZE, stdin);
-			memmove(aux, aux+1, strlen(aux));
 			aux[strlen(aux)-1] = '\0';
+			strcat(entry, aux);
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
-			send_message(numbytes, sockfd, entry);
-			send_message(numbytes, sockfd, aux);
+			int len;
+            len = strlen(entry);
+            if (send_message(sockfd, entry, &len) == -1) {
+                perror("send_message");
+                printf("We only sent %d bytes because of the error!\n", len);
+            } 
+
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
 		
@@ -222,48 +239,44 @@ int main(int argc, char *argv[])
 		else if(strcmp(entry, "year")==0){
 			char aux[MAXDATASIZE];
 			fgets(aux, MAXDATASIZE, stdin);
-			memmove(aux, aux+1, strlen(aux));
 			aux[strlen(aux)-1] = '\0';
+			strcat(entry, aux);
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
-			send_message(numbytes, sockfd, entry);
-			send_message(numbytes, sockfd, aux);
+			int len;
+            len = strlen(entry);
+            if (send_message(sockfd, entry, &len) == -1) {
+                perror("send_message");
+                printf("We only sent %d bytes because of the error!\n", len);
+            } 
 
 			bzero(buf, MAXDATASIZE);
-			char *msg = receive_message(numbytes, sockfd, buf);
-			if(strcmp(msg,"error")==0 || strcmp(msg,"end")==0){
-				printf("client: Insira o comando: ");
-				scanf("%s", &entry);
-				continue;
-			}
-			else{
-				while(1){
-					bzero(buf, MAXDATASIZE);
-					if(strcmp(receive_message(numbytes, sockfd, buf),"end")==0){
-						break;
-					}
-				}
-			}
+			receive_message(numbytes, sockfd, buf);
+		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
 		else if(strcmp(entry, "remove")==0){
 			char aux[MAXDATASIZE];
 			fgets(aux, MAXDATASIZE, stdin);
-			memmove(aux, aux+1, strlen(aux));
 			aux[strlen(aux)-1] = '\0';
+			strcat(entry, aux);
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
-			send_message(numbytes, sockfd, entry);
-			send_message(numbytes, sockfd, aux);
+			int len;
+            len = strlen(entry);
+            if (send_message(sockfd, entry, &len) == -1) {
+                perror("send_message");
+                printf("We only sent %d bytes because of the error!\n", len);
+            } 
 
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
