@@ -21,7 +21,7 @@
 int save_data(char* dados) {
     FILE* arquivo;
     char* campo;
-    char email[100], nome[100], sobrenome[100], residencia[100], formacao[100], ano[5], habilidades[200];
+    char email[100], nome[100], sobrenome[100], residencia[100], formacao[100], ano[5], habilidades[500];
     campo = strtok(dados, ";");
     int i = 0;
     while(campo != NULL) {
