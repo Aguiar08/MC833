@@ -61,6 +61,12 @@ int save_data(char* dados) {
     
     char nome_arquivo[109];
     sprintf(nome_arquivo, "../users/%s.txt", email);
+    arquivo = fopen(nome_arquivo, "r");
+    if (arquivo != NULL){
+        printf("server: This user already exists!\n");
+        fclose(arquivo);
+        return 0;
+    }
     arquivo = fopen(nome_arquivo, "a+");
     if(arquivo == NULL) {
         printf("server: Open file error\n");
@@ -243,6 +249,7 @@ int get_profile_by_skill(char* skill, int new_fd) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
+    free(final);
     return 1;
 }
 
@@ -256,6 +263,8 @@ int get_profile_by_year(char* year, int new_fd) {
         return 0;
     }
 
+    char * final = (char *) malloc(1);
+    *final = '\0'; 
     while ((entry = readdir(folder)) != NULL) {
         if (entry->d_type == DT_REG) {
             char nome_arquivo[109];
@@ -287,12 +296,8 @@ int get_profile_by_year(char* year, int new_fd) {
                 }
 
                 if (ano != NULL && strcmp(ano, year) == 0) {
-                    int len;
-                    len = strlen(output);
-                    if (send_message(new_fd, output, &len) == -1) {
-                        perror("send_message");
-                        printf("We only sent %d bytes because of the error!\n", len);
-                    } 
+                    final = (char *)realloc(final, strlen(final)+strlen(output)+1);
+                    strcat(final,output);
                 }
             }
 
@@ -302,11 +307,12 @@ int get_profile_by_year(char* year, int new_fd) {
 
     closedir(folder);
     int len;
-    len = strlen("end");
-    if (send_message(new_fd, "end", &len) == -1) {
+    len = strlen(final);
+    if (send_message(new_fd, final, &len) == -1) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
+    free(final);
     return 1;
 }
 
@@ -319,7 +325,8 @@ int get_all(int new_fd) {
         printf("server: Open folder error\n");
         return 0;
     }
-
+    char * final = (char *) malloc(1);
+    *final = '\0'; 
     while ((entry = readdir(folder)) != NULL) {
         if (entry->d_type == DT_REG) {
             char nome_arquivo[109];
@@ -339,12 +346,8 @@ int get_all(int new_fd) {
                     strcat(output, buffer);
                 }
 
-            int len;
-            len = strlen(output);
-            if (send_message(new_fd, output, &len) == -1) {
-                perror("send_message");
-                printf("We only sent %d bytes because of the error!\n", len);
-            } 
+            final = (char *)realloc(final, strlen(final)+strlen(output)+1);
+            strcat(final,output);
 
             fclose(file);
         }
@@ -352,11 +355,12 @@ int get_all(int new_fd) {
 
     closedir(folder);
     int len;
-    len = strlen("end");
-    if (send_message(new_fd, "end", &len) == -1) {
+    len = strlen(final);
+    if (send_message(new_fd, final, &len) == -1) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
+    free(final);
     return 1;
 }
 
@@ -482,12 +486,12 @@ int main(void) {
             while(1){
 
                 //========== RECEIVE ===================
+                bzero(buf, MAXDATASIZE);
                 receive_message(numbytes, new_fd, buf);
-
-                if(strcmp(buf, "insert") == 0){
-                    char entry[MAXDATASIZE];
-                    bzero(entry, MAXDATASIZE);
-                    if(save_data(receive_message(numbytes, new_fd, entry))){
+                char first = buf[0];
+                if(first == 'i'){
+                    memmove(buf, buf+7, strlen(buf));
+                    if(save_data(buf)){
                         printf("server: Client saved in the database\n");
                         int len;
                         len = strlen("Operation Successful");
@@ -506,7 +510,7 @@ int main(void) {
                     }
                     
 	            }
-                else if(strcmp(buf, "all") == 0){
+                else if(first == 'a'){
                     if (!get_all(new_fd)){
                         int len;
                         len = strlen("Operation Failed");
@@ -516,10 +520,9 @@ int main(void) {
                         }
                     }
                 }
-                else if(strcmp(buf, "email") == 0){
-                    char entry[MAXDATASIZE];
-                    bzero(entry, MAXDATASIZE);
-                    if(!get_profile(receive_message(numbytes, new_fd, entry), new_fd)){
+                else if(first == 'e'){
+                    memmove(buf, buf+6, strlen(buf));
+                    if(!get_profile(buf, new_fd)){
                         int len;
                         len = strlen("Operation Failed");
                         if (send_message(new_fd, "Operation Failed", &len) == -1) {
@@ -528,10 +531,9 @@ int main(void) {
                         } 
                     }
                 }
-                else if(strcmp(buf, "course") == 0){
-                    char entry[MAXDATASIZE];
-                    bzero(entry, MAXDATASIZE);
-                    if(!get_profile_by_course(receive_message(numbytes, new_fd, entry), new_fd)){
+                else if(first == 'c'){
+                    memmove(buf, buf+7, strlen(buf));
+                    if(!get_profile_by_course(buf, new_fd)){
                         int len;
                         len = strlen("Operation Failed");
                         if (send_message(new_fd, "Operation Failed", &len) == -1) {
@@ -540,10 +542,9 @@ int main(void) {
                         }
                     }
                 }
-                else if(strcmp(buf, "skill") == 0){
-                    char entry[MAXDATASIZE];
-                    bzero(entry, MAXDATASIZE);
-                    if(!get_profile_by_skill(receive_message(numbytes, new_fd, entry), new_fd)){
+                else if(first == 's'){
+                    memmove(buf, buf+6, strlen(buf));
+                    if(!get_profile_by_skill(buf, new_fd)){
                         int len;
                         len = strlen("Operation Failed");
                         if (send_message(new_fd, "Operation Failed", &len) == -1) {
@@ -552,10 +553,9 @@ int main(void) {
                         } 
                     }
                 }
-                else if(strcmp(buf, "year") == 0){
-                    char entry[MAXDATASIZE];
-                    bzero(entry, MAXDATASIZE);
-                    if(!get_profile_by_year(receive_message(numbytes, new_fd, entry), new_fd)){
+                else if(first == 'y'){
+                    memmove(buf, buf+5, strlen(buf));
+                    if(!get_profile_by_year(buf, new_fd)){
                         int len;
                         len = strlen("Operation Failed");
                         if (send_message(new_fd, "Operation Failed", &len) == -1) {
@@ -564,10 +564,9 @@ int main(void) {
                         }
                     }
                 }
-                else if(strcmp(buf, "remove") == 0){
-                    char entry[MAXDATASIZE];
-                    bzero(entry, MAXDATASIZE);
-                    if(remove_profile(receive_message(numbytes, new_fd, entry))){
+                else if(first == 'r'){
+                    memmove(buf, buf+7, strlen(buf));
+                    if(remove_profile(buf)){
                         printf("server: Client removed from the database\n");
                         int len;
                         len = strlen("Operation Successful");
