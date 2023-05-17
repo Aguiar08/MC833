@@ -18,12 +18,13 @@
 
 #define MAXDATASIZE 1024 // max number of bytes we can get at once 
 
+//=================== Send function ===========================
 int send_message(int s, char *buf, int *len){
     int total = 0;        // how many bytes we've sent
     int bytesleft = *len; // how many we have left to send
     int n;
     while(total < *len) {
-        n = send(s, buf+total, bytesleft, 0);
+        n = send(s, buf+total, bytesleft, 0); // sends all bytes
         if (n == -1) { break; }
         total += n;
         bytesleft -= n;
@@ -34,6 +35,7 @@ int send_message(int s, char *buf, int *len){
     return n==-1?-1:0; // return -1 on failure, 0 on success
 } 
 
+//=================== Receive function ===========================
 char* receive_message(int numbytes, int sockfd, char* buf){
     if ((numbytes = recv(sockfd, buf, strlen(buf)-1, 0)) == -1) {
         perror("recv");
@@ -42,6 +44,7 @@ char* receive_message(int numbytes, int sockfd, char* buf){
 	printf("client: received '%s'\n",buf);
 	return buf;
 }
+
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -53,6 +56,7 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+//===================== Main ================================
 int main(int argc, char *argv[])
 {
 	int sockfd, numbytes;  
@@ -105,12 +109,15 @@ int main(int argc, char *argv[])
 
 	freeaddrinfo(servinfo); // all done with this structure
 
+	//Start the client
 	char entry[50];
 	char out[5] = "exit";
 	printf("client: Ola, seja bem-vindo, digite /help para ver os comandos\n");
 	printf("client: Insira o comando: ");
-	scanf("%s", &entry);
-	while(strcmp(entry, out) != 0) {
+	scanf("%s", &entry); //scans the command, i.e. "insert"
+	while(strcmp(entry, out) != 0) { //while the string passed is not "exit" continue the program
+
+		//if the user wants to see all the commands
 		if (strcmp(entry, "/help") == 0) {
 			printf("Comandos: \n");
 			printf("\tinsert {dados}: inserir usuario novo\n");
@@ -127,17 +134,20 @@ int main(int argc, char *argv[])
 			continue;
 		}
 
+		//insert method passed
 		if(strcmp(entry, "insert")==0){
 			char aux[MAXDATASIZE];
-			fgets(aux, MAXDATASIZE, stdin);
+			fgets(aux, MAXDATASIZE, stdin); //gets the rest of the command, for example, the data from the insert
 			aux[strlen(aux)-1] = '\0';
-			strcat(entry, aux);
+			strcat(entry, aux); //puts all the info in one string
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
+
+			//sends the message to the client	
 			int len;
             len = strlen(entry);
             if (send_message(sockfd, entry, &len) == -1) {
@@ -145,36 +155,47 @@ int main(int argc, char *argv[])
                 printf("We only sent %d bytes because of the error!\n", len);
             } 
 
+			//clears the buffer and waits for the response
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
 		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
+
+		//get all method passed
 		else if(strcmp(entry, "all")==0){
+
+			//sends the message to the client
 			int len;
             len = strlen(entry);
             if (send_message(sockfd, entry, &len) == -1) {
                 perror("send_message");
                 printf("We only sent %d bytes because of the error!\n", len);
             } 
+
+			//clears the buffer and waits for the response
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
 		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
+
+		//get by email method passed
 		else if(strcmp(entry, "email")==0){
 			char aux[MAXDATASIZE];
-			fgets(aux, MAXDATASIZE, stdin);
+			fgets(aux, MAXDATASIZE, stdin); //gets the rest of the command, for example, the data from the insert
 			aux[strlen(aux)-1] = '\0';
-			strcat(entry, aux);
+			strcat(entry, aux); //puts all the info in one string
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
+
+			//sends the message to the client	
 			int len;
             len = strlen(entry);
             if (send_message(sockfd, entry, &len) == -1) {
@@ -182,23 +203,28 @@ int main(int argc, char *argv[])
                 printf("We only sent %d bytes because of the error!\n", len);
             } 
 
+			//clears the buffer and waits for the response
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
 		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
+
+		//get by course method passed
 		else if(strcmp(entry, "course")==0){
 			char aux[MAXDATASIZE];
-			fgets(aux, MAXDATASIZE, stdin);
+			fgets(aux, MAXDATASIZE, stdin); //gets the rest of the command, for example, the data from the insert
 			aux[strlen(aux)-1] = '\0';
-			strcat(entry, aux);
+			strcat(entry, aux); //puts all the info in one string
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
+
+			//sends the message to the client	
 			int len;
             len = strlen(entry);
             if (send_message(sockfd, entry, &len) == -1) {
@@ -206,23 +232,28 @@ int main(int argc, char *argv[])
                 printf("We only sent %d bytes because of the error!\n", len);
             } 
 
+			//clears the buffer and waits for the response
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
 		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
+
+		//get by skill method passed
 		else if(strcmp(entry, "skill")==0){
 			char aux[MAXDATASIZE];
-			fgets(aux, MAXDATASIZE, stdin);
+			fgets(aux, MAXDATASIZE, stdin); //gets the rest of the command, for example, the data from the insert
 			aux[strlen(aux)-1] = '\0';
-			strcat(entry, aux);
+			strcat(entry, aux); //puts all the info in one string
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
+
+			//sends the message to the client	
 			int len;
             len = strlen(entry);
             if (send_message(sockfd, entry, &len) == -1) {
@@ -230,23 +261,28 @@ int main(int argc, char *argv[])
                 printf("We only sent %d bytes because of the error!\n", len);
             } 
 
+			//clears the buffer and waits for the response
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
 		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
+
+		//get by year method passed
 		else if(strcmp(entry, "year")==0){
 			char aux[MAXDATASIZE];
-			fgets(aux, MAXDATASIZE, stdin);
+			fgets(aux, MAXDATASIZE, stdin); //gets the rest of the command, for example, the data from the insert
 			aux[strlen(aux)-1] = '\0';
-			strcat(entry, aux);
+			strcat(entry, aux); //puts all the info in one string
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
+
+			//sends the message to the client	
 			int len;
             len = strlen(entry);
             if (send_message(sockfd, entry, &len) == -1) {
@@ -254,23 +290,28 @@ int main(int argc, char *argv[])
                 printf("We only sent %d bytes because of the error!\n", len);
             } 
 
+			//clears the buffer and waits for the response
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
 		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
+
+		//remove user method passed
 		else if(strcmp(entry, "remove")==0){
 			char aux[MAXDATASIZE];
-			fgets(aux, MAXDATASIZE, stdin);
+			fgets(aux, MAXDATASIZE, stdin); //gets the rest of the command, for example, the data from the insert
 			aux[strlen(aux)-1] = '\0';
-			strcat(entry, aux);
+			strcat(entry, aux); //puts all the info in one string
 			if(strlen(aux) == 0){
 				printf("client: Comando inválido\n");
 				printf("client: Insira o comando: ");
 				scanf("%s", &entry);
 				continue;
 			}
+
+			//sends the message to the client	
 			int len;
             len = strlen(entry);
             if (send_message(sockfd, entry, &len) == -1) {
@@ -278,12 +319,15 @@ int main(int argc, char *argv[])
                 printf("We only sent %d bytes because of the error!\n", len);
             } 
 
+			//clears the buffer and waits for the response
 			bzero(buf, MAXDATASIZE);
 			receive_message(numbytes, sockfd, buf);
 		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
 		}
+
+		//if the command does not exist, repeat the request
 		else{
 			printf("client: Comando inválido\n");
 			printf("client: Insira o comando: ");
