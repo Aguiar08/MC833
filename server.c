@@ -18,61 +18,65 @@
 
 #define MAXDATASIZE 1024 // max number of bytes we can get at once 
 
+//===================== Save Data ================================
 int save_data(char* dados) {
-    FILE* arquivo;
+    FILE* arquivo; //declare file archive
     char* campo;
-    char email[100], nome[100], sobrenome[100], residencia[100], formacao[100], ano[5], habilidades[500];
-    campo = strtok(dados, ";");
+    char email[100], nome[100], sobrenome[100], residencia[100], formacao[100], ano[5], habilidades[500]; //declare size of the user information
+    campo = strtok(dados, ";"); //separate information based on the ; string
     int i = 0;
     while(campo != NULL) {
         switch (i) {
             case 0:
-                strcpy(email, campo);
+                strcpy(email, campo); //first ocurrance is the email
                 break;
             case 1:
-                strcpy(nome, campo);
+                strcpy(nome, campo); //second ocurrance is the name
                 break;
             case 2:
-                strcpy(sobrenome, campo);
+                strcpy(sobrenome, campo); //third ocurrance is the surname
                 break;
             case 3:
-                strcpy(residencia, campo);
+                strcpy(residencia, campo); //fourth ocurrance is the address
                 break;
             case 4:
-                strcpy(formacao, campo);
+                strcpy(formacao, campo); //this ocurrance is the degree
                 break;
             case 5:
-                strcpy(ano, campo);
+                strcpy(ano, campo); //this ocurrance is the year of graduation
                 break;
             case 6:
-                strcpy(habilidades, campo);
+                strcpy(habilidades, campo); //this is the skill field
                 break;
             default:
-                printf("Dados inválidos\n");
+                printf("Dados inválidos\n"); //if there is more information than necessary
                 return 0;
         }
         campo = strtok(NULL, ";");
         i++;
     }
     if(i<6){
-        printf("server: Missing data on insert\n");
+        printf("server: Missing data on insert\n"); //if there is less information than the necessary returns error
         return 0;
     }
     
+    //checking if the file already exists
     char nome_arquivo[109];
     sprintf(nome_arquivo, "../users/%s.txt", email);
-    arquivo = fopen(nome_arquivo, "r");
+    arquivo = fopen(nome_arquivo, "r"); 
     if (arquivo != NULL){
-        printf("server: This user already exists!\n");
+        printf("server: This user already exists!\n"); //If exists, avoid inserting again
         fclose(arquivo);
         return 0;
     }
+    //if does not exist, add a new file
     arquivo = fopen(nome_arquivo, "a+");
     if(arquivo == NULL) {
         printf("server: Open file error\n");
         return 0;
     }
     
+    //save data in the correct format
     fprintf(arquivo, "Email: %s\n", email);
     fprintf(arquivo, "Nome: %s Sobrenome: %s\n", nome, sobrenome);
     fprintf(arquivo, "Residência: %s\n", residencia);
@@ -84,23 +88,25 @@ int save_data(char* dados) {
     return 1;
 }
 
+
+//===================== Send Message ================================
 int send_message(int s, char *buf, int *len){
     int total = 0;        // how many bytes we've sent
     int bytesleft = *len; // how many we have left to send
     int n;
-
     while(total < *len) {
-        n = send(s, buf+total, bytesleft, 0);
+        n = send(s, buf+total, bytesleft, 0); // sends all bytes
         if (n == -1) { break; }
         total += n;
         bytesleft -= n;
     }
 
     *len = total; // return number actually sent here
-    printf("server: sent %s\n", buf);
+    printf("client: sent %s\n", buf);
     return n==-1?-1:0; // return -1 on failure, 0 on success
 } 
 
+//===================== Receive Message ================================
 char* receive_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
     if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
         perror("recv");
@@ -110,27 +116,31 @@ char* receive_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
     return buf;
 }
 
+//===================== Get profile by Email ================================
 int get_profile(char* email, int new_fd) {
     char nome_arquivo[109];
-    sprintf(nome_arquivo, "../users/%s.txt", email);
+    sprintf(nome_arquivo, "../users/%s.txt", email); //add the path to the file requested
+
+    //checks if the file exists
     FILE *file = fopen(nome_arquivo, "r");
     if (file == NULL){
-        printf("server: open file error!\n");
-        return 0;
+        printf("server: open file error!\n"); //return error if it does not exist
+        return 0; 
     }
 
-    // char[6][] carac = {"Email", "Nome", "Residencia", "Formacao Academica", "Ano de Formatura", "Habilidades"}
-
+    //iterate throuhg the file adding all the information
     char linha[MAXDATASIZE];
     char result[MAXDATASIZE];
     bzero(result, MAXDATASIZE);
     int i = 0;
     while (!feof(file)){
         fgets(linha, MAXDATASIZE, file);
-        if(i<6) strcat(result, linha);
+        if(i<6) strcat(result, linha); //adds the line to the string to be send
         i++;
     }
     fclose(file);
+
+    //sends the information
     int len;
     len = strlen(result);
     if (send_message(new_fd, result, &len) == -1) {
@@ -140,44 +150,58 @@ int get_profile(char* email, int new_fd) {
     return 1;
 }
 
+//===================== Get profile by Course ================================
 int get_profile_by_course(char* course, int new_fd) {
     DIR *folder;
     struct dirent *entry;
 
+    //Tries to open the users directory
     folder = opendir("../users/.");
     if (folder == NULL) {
-        printf("server: open folder error!\n");
+        printf("server: open folder error!\n"); //If it fails, return error
         return 0;
     }
 
+    //Allocates message sent dize
     char * final = (char *) malloc(1);
     *final = '\0'; 
+
+    //Iterates through all the files
     while ((entry = readdir(folder)) != NULL) {
         if (entry->d_type == DT_REG) {
+
+            //Open the file
             char nome_arquivo[109];
             sprintf(nome_arquivo, "../users/%s", entry->d_name);
             FILE *file = fopen(nome_arquivo, "r");
             if (file == NULL) {
-                printf("server: open file error!\n");
+                printf("server: open file error!\n"); //If it fails, jump to next file
                 continue;
             }
 
-            // ler o arquivo de texto
+            //Read the file
             char buffer[MAXDATASIZE];
             char *curso = NULL;
             char result [MAXDATASIZE];
             while (fgets(buffer, MAXDATASIZE, file) != NULL) {
+
+                //Save user course information
                 if (strstr(buffer, "Formação Acadêmica") != NULL) {
                     curso = strchr(buffer, ':') + 2;
                     curso[strlen(curso)-1] = '\0';
-                    
+                
+                //Append Email info
                 } else if (strstr(buffer, "Email") != NULL) {
                     strcpy(result, buffer);
+
+                //Append Name info
                 } else if (strstr(buffer, "Nome") != NULL) {
                     strcat(result, buffer);
                 }
                 
+                //If the course info is equals to the passed one
                 if (curso != NULL && strcmp(curso, course) == 0) {
+                    //Realloc the message and add the information of the user
                     final = (char *)realloc(final, strlen(final)+strlen(result)+1);
                     strcat(final,result);
                 }
@@ -187,6 +211,7 @@ int get_profile_by_course(char* course, int new_fd) {
         }
     }
 
+    //Send the final message
     closedir(folder);
     int len;
     len = strlen(final);
@@ -194,44 +219,60 @@ int get_profile_by_course(char* course, int new_fd) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
-    free(final);
+    free(final); //Free the memory
     return 1;
 }
 
+//===================== Get profile by Skill ================================
 int get_profile_by_skill(char* skill, int new_fd) {
     DIR *folder;
     struct dirent *entry;
 
+    //Tries to open the users directory
     folder = opendir("../users/.");
-    if (folder == NULL){
-        printf("server: Open folder error\n");
+    if (folder == NULL) {
+        printf("server: open folder error!\n"); //If it fails, return error
         return 0;
     }
 
+    //Allocates message sent dize
     char * final = (char *) malloc(1);
-    *final = '\0'; 
+    *final = '\0';  
+
+    //Iterates through all the files
     while ((entry = readdir(folder)) != NULL) {
         if (entry->d_type == DT_REG) {
+
+            //Open the file
             char nome_arquivo[109];
             sprintf(nome_arquivo, "../users/%s", entry->d_name);
             FILE *file = fopen(nome_arquivo, "r");
             if (file == NULL) {
-                printf("server: open file error\n");
+                printf("server: open file error!\n"); //If it fails, jump to next file
                 printf("server: %s\n", nome_arquivo);
                 continue;
             }
 
+            //Read the file
             char buffer[MAXDATASIZE];
             char output[MAXDATASIZE];
             while (fgets(buffer, MAXDATASIZE, file) != NULL) {
+
+                //Append Email info
                 if (strstr(buffer, "Email") != NULL) {
                     strcpy(output,buffer);
                 }
+
+                //Append Name info
                 else if (strstr(buffer, "Nome") != NULL) {
                     strcat(output,buffer);
                 }
+
+                //If passed skill is present in the current user
                 else if (strstr(buffer, "Habilidades") != NULL) {
+                    //Add the information to the final message
                     if (strstr(buffer, skill) != NULL) {
+                        //Realloc the message and add the information of the user
                         final = (char *)realloc(final, strlen(final)+strlen(output)+1);
                         strcat(final,output);
                     }
@@ -242,6 +283,7 @@ int get_profile_by_skill(char* skill, int new_fd) {
         }
     }
 
+    //Send the final message
     closedir(folder);
     int len;
     len = strlen(final);
@@ -249,53 +291,70 @@ int get_profile_by_skill(char* skill, int new_fd) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
-    free(final);
+    free(final); //Free memory
     return 1;
 }
 
+//===================== Get profile by Year ================================
 int get_profile_by_year(char* year, int new_fd) {
     DIR *folder;
     struct dirent *entry;
 
+    //Tries to open the users directory
     folder = opendir("../users/.");
     if (folder == NULL) {
-        printf("server: Open folder error\n");
+        printf("server: open folder error!\n"); //If it fails, return error
         return 0;
     }
 
+    //Allocates message sent dize
     char * final = (char *) malloc(1);
-    *final = '\0'; 
+    *final = '\0';  
+
+    //Iterates through all the files
     while ((entry = readdir(folder)) != NULL) {
         if (entry->d_type == DT_REG) {
+
+            //Open the file
             char nome_arquivo[109];
             sprintf(nome_arquivo, "../users/%s", entry->d_name);
             FILE *file = fopen(nome_arquivo, "r");
             if (file == NULL) {
-                printf("server: Open file error\n");
+                printf("server: Open file error\n"); //If it fails, jump to next file
                 printf("server: %s\n", nome_arquivo);
                 continue;
             }
 
-            // ler o arquivo de texto
+            //Read file
             char buffer[MAXDATASIZE];
             char output[MAXDATASIZE];
             char *ano = NULL;
             while (fgets(buffer, MAXDATASIZE, file) != NULL) {
+
+                //Append Email info
                 if (strstr(buffer, "Email") != NULL) {
                     strcpy(output,buffer);
                 }
+
+                //Append Name info
                 else if (strstr(buffer, "Nome") != NULL) {
                     strcat(output,buffer);
                 }
+
+                //Append Course info
                 else if (strstr(buffer, "Formação Acadêmica") != NULL) {
                     strcat(output,buffer);
                 }
+
+                //Save current user graduation year data
                 else if (strstr(buffer, "Ano de Formatura") != NULL) {
                     ano = strchr(buffer, ':') + 2;
                     ano[strlen(ano)-1] = '\0';
                 }
 
+                //Compare the current user graduation year with the request
                 if (ano != NULL && strcmp(ano, year) == 0) {
+                    //Realloc the message and add the information of the user
                     final = (char *)realloc(final, strlen(final)+strlen(output)+1);
                     strcat(final,output);
                 }
@@ -305,6 +364,7 @@ int get_profile_by_year(char* year, int new_fd) {
         }
     }
 
+    //Send final message
     closedir(folder);
     int len;
     len = strlen(final);
@@ -312,40 +372,57 @@ int get_profile_by_year(char* year, int new_fd) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
-    free(final);
+    free(final); //Free memory
     return 1;
 }
 
+//===================== Get All users  ================================
 int get_all(int new_fd) {
     DIR *folder;
     struct dirent *entry;
 
+    //Tries to open the users directory
     folder = opendir("../users/.");
     if (folder == NULL) {
-        printf("server: Open folder error\n");
+        printf("server: open folder error!\n"); //If it fails, return error
         return 0;
     }
+
+    //Allocates message sent dize
     char * final = (char *) malloc(1);
-    *final = '\0'; 
+    *final = '\0';  
+
+    //Iterates through all the files
     while ((entry = readdir(folder)) != NULL) {
         if (entry->d_type == DT_REG) {
+
+            //Open the file
             char nome_arquivo[109];
             sprintf(nome_arquivo, "../users/%s", entry->d_name);
             FILE *file = fopen(nome_arquivo, "r");
             if (file == NULL) {
-                printf("server: open file error\n");
+                printf("server: Open file error\n"); //If it fails, jump to next file
+                printf("server: %s\n", nome_arquivo);
                 continue;
             }
 
+            //Read the data
             char buffer[MAXDATASIZE];
             char output[MAXDATASIZE];
             while (fgets(buffer, MAXDATASIZE, file) != NULL)
+
+                //Append Email info
                 if (strstr(buffer, "Email") != NULL) {
+                    //Because is the first information use strcpy
                     strcpy(output,buffer);
-                } else {
+                } 
+
+                //Append all the other infos
+                else { 
                     strcat(output, buffer);
                 }
 
+            //Realloc the message and add the information of the user
             final = (char *)realloc(final, strlen(final)+strlen(output)+1);
             strcat(final,output);
 
@@ -353,6 +430,7 @@ int get_all(int new_fd) {
         }
     }
 
+    //Send the final message
     closedir(folder);
     int len;
     len = strlen(final);
@@ -360,23 +438,28 @@ int get_all(int new_fd) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
-    free(final);
+    free(final); //Free memory
     return 1;
 }
 
+//===================== Remove Profile ================================
 int remove_profile(char* email) {
+
+    //Check if the file exists
     char nome_arquivo[109];
     sprintf(nome_arquivo, "../users/%s.txt", email);
     FILE *file = fopen(nome_arquivo, "r");
     if (file == NULL){
-        printf("server: File not found\n");
+        printf("server: File not found\n"); //If it fails, return error
         return 0;
     }
     fclose(file);
+
+    //Remove the file
     if (remove(nome_arquivo) == 0) {
         return 1;
     } else {
-        printf("server: File remove error\n");
+        printf("server: File remove error\n"); //If it fails, return error
         return 0;
     }
 }
@@ -400,6 +483,7 @@ void *get_in_addr(struct sockaddr *sa) {
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+//===================== Main ================================
 int main(void) {
     int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
     int numbytes;  
@@ -485,21 +569,27 @@ int main(void) {
             close(sockfd); // child doesn't need the listener
             while(1){
 
-                //========== RECEIVE ===================
+                //Receive the request from the user
                 bzero(buf, MAXDATASIZE);
                 receive_message(numbytes, new_fd, buf);
                 char first = buf[0];
+
+                //Insert method
                 if(first == 'i'){
-                    memmove(buf, buf+7, strlen(buf));
+                    memmove(buf, buf+7, strlen(buf)); //remove "insert" from the string
+
+                    //Save the data into the database
                     if(save_data(buf)){
                         printf("server: Client saved in the database\n");
                         int len;
-                        len = strlen("Operation Successful");
+                        len = strlen("Operation Successful"); //Send operation successful
                         if (send_message(new_fd, "Operation Successful", &len) == -1) {
                             perror("send_message");
                             printf("We only sent %d bytes because of the error!\n", len);
                         } 
                     }
+
+                    //If it fails, send operation failed
                     else{
                         int len;
                         len = strlen("Operation Failed");
@@ -510,7 +600,11 @@ int main(void) {
                     }
                     
 	            }
+
+                //Get all method
                 else if(first == 'a'){
+
+                    //If fails, send operation failed
                     if (!get_all(new_fd)){
                         int len;
                         len = strlen("Operation Failed");
@@ -520,8 +614,12 @@ int main(void) {
                         }
                     }
                 }
+
+                //Get by email method
                 else if(first == 'e'){
-                    memmove(buf, buf+6, strlen(buf));
+                    memmove(buf, buf+6, strlen(buf)); //remove "email" from the string
+
+                    //If fails, send operation failed
                     if(!get_profile(buf, new_fd)){
                         int len;
                         len = strlen("Operation Failed");
@@ -531,8 +629,12 @@ int main(void) {
                         } 
                     }
                 }
+
+                //Get by course method
                 else if(first == 'c'){
-                    memmove(buf, buf+7, strlen(buf));
+                    memmove(buf, buf+7, strlen(buf)); //remove "course" fro string
+
+                    //If fails, send operation failed
                     if(!get_profile_by_course(buf, new_fd)){
                         int len;
                         len = strlen("Operation Failed");
@@ -542,8 +644,12 @@ int main(void) {
                         }
                     }
                 }
+
+                //Get by skill method
                 else if(first == 's'){
-                    memmove(buf, buf+6, strlen(buf));
+                    memmove(buf, buf+6, strlen(buf)); //remove "skill" from the string
+
+                    //If fails, send operation failed
                     if(!get_profile_by_skill(buf, new_fd)){
                         int len;
                         len = strlen("Operation Failed");
@@ -553,8 +659,12 @@ int main(void) {
                         } 
                     }
                 }
+
+                //Get by year method
                 else if(first == 'y'){
-                    memmove(buf, buf+5, strlen(buf));
+                    memmove(buf, buf+5, strlen(buf)); //remove "year" from the string
+
+                    //If fails, send operation failed
                     if(!get_profile_by_year(buf, new_fd)){
                         int len;
                         len = strlen("Operation Failed");
@@ -564,17 +674,23 @@ int main(void) {
                         }
                     }
                 }
+
+                //Remove method
                 else if(first == 'r'){
-                    memmove(buf, buf+7, strlen(buf));
+                    memmove(buf, buf+7, strlen(buf)); //remove "remove" from the string
+
+                    //Remove the profile from the database
                     if(remove_profile(buf)){
                         printf("server: Client removed from the database\n");
                         int len;
-                        len = strlen("Operation Successful");
+                        len = strlen("Operation Successful"); //Send operation successful
                         if (send_message(new_fd, "Operation Successful", &len) == -1) {
                             perror("send_message");
                             printf("We only sent %d bytes because of the error!\n", len);
                         }
                     }
+
+                    //If fails, send operation failed
                     else{
                         int len;
                         len = strlen("Operation Failed");
@@ -584,12 +700,15 @@ int main(void) {
                         } 
                     }
                 }
+
+                //If the conection closes, print exiting
                 else if(strcmp(buf, "") == 0){
                     printf("server: Exiting connection from %s\n", s);
                     break;
 	            }
+
+                //If there is a mistake on the input
                 else{
-                    //========== SEND ===================
                     int len;
                     len = strlen("error");
                     if (send_message(new_fd, "error", &len) == -1) {
@@ -611,24 +730,6 @@ int main(void) {
         perror("accept");
         exit(1);
     }
-
-    // while(1) {  // main accept() loop
-
-    //     //========== RECEIVE ===================
-    //     bzero(buf, MAXDATASIZE);
-    //     receive_message(numbytes, new_fd, buf);
-    
-    //     if(strcmp(buf, "insert") == 0){
-    //         char entry[MAXDATASIZE];
-    //         save_data(receive_message(numbytes, new_fd, entry));
-    //         char * buf = "server: Client saved in the database";
-	//     }
-
-    //     //========== SEND ===================
-
-    //     send_message(numbytes, new_fd, buf);
-    // }
-    // close(sockfd);
 
     return 0;
 }
