@@ -147,27 +147,17 @@ int main(int argc, char *argv[])
 				continue;
 			}
 
-			//sends the message to the client	
+			//sends the message to the client
 			int len;
             len = strlen(entry);
-            if ((numbytes = sendto(sockfd, entry, len, 0,p->ai_addr, p->ai_addrlen)) == -1) {
-    			perror("talker: sendto");
-    			exit(1);
- 			}
-
-			printf("client: sent %d bytes to %s\n", numbytes, argv[1]);
+            if (send_message(sockfd, entry, &len) == -1) {
+                perror("send_message");
+                printf("We only sent %d bytes because of the error!\n", len);
+            } 
 
 			//clears the buffer and waits for the response
 			bzero(buf, MAXDATASIZE);
- 			if ((numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1 , 0, p->ai_addr, p->ai_addrlen)) == -1) {
-    			perror("recvfrom");
-		    	exit(1);
- 			}
-
- 			printf("client: got packet from %s\n",argv[1]);
- 			printf("client: packet is %d bytes long\n", numbytes);
- 			buf[numbytes] = '\0';
- 			printf("client: packet contains \"%s\"\n", buf);
+			receive_message(numbytes, sockfd, buf);
 		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
