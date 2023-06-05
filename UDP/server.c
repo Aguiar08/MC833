@@ -498,7 +498,7 @@ int main(void) {
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
     if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
@@ -536,11 +536,6 @@ int main(void) {
         exit(1);
     }
 
-    if (listen(sockfd, BACKLOG) == -1) {
-        perror("listen");
-        exit(1);
-    }
-
     sa.sa_handler = sigchld_handler; // reap all dead processes
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
@@ -552,183 +547,166 @@ int main(void) {
     printf("server: waiting for connections...\n");
 
     while(1) {  // main accept() loop
+        //Receive the request from the user
+        bzero(buf, MAXDATASIZE);
+		sin_size = sizeof their_addr;
+ 		if ((numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1 , 0,(struct sockaddr *)&their_addr, &sin_size)) == -1) {
+    		perror("recvfrom");
+		    exit(1);
+ 		}
 
-        sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (new_fd == -1) {
-            perror("accept");
-            continue;
-        }
+ 		printf("server: got packet from %s\n",inet_ntop(their_addr.ss_family,get_in_addr((struct sockaddr *)&their_addr),s, sizeof s));
+ 		printf("server: packet is %d bytes long\n", numbytes);
+ 		buf[numbytes] = '\0';
+ 		printf("server: packet contains \"%s\"\n", buf);
 
-        inet_ntop(their_addr.ss_family,
-            get_in_addr((struct sockaddr *)&their_addr),
-            s, sizeof s);
-        printf("server: got connection from %s\n", s);
+        char first = buf[0];
 
-        if (!fork()) { // this is the child process
-            close(sockfd); // child doesn't need the listener
-            while(1){
+        //Insert method
+        if(first == 'i'){
+            memmove(buf, buf+7, strlen(buf)); //remove "insert" from the string
 
-                //Receive the request from the user
-                bzero(buf, MAXDATASIZE);
-                receive_message(numbytes, new_fd, buf);
-                char first = buf[0];
+            //Save the data into the database
+            if(save_data(buf)){
+                printf("server: Client saved in the database\n");
+                int len;
+                len = strlen("Operation Successful"); //Send operation successful
+                if ((numbytes = sendto(sockfd, "Operation Successful", len, 0,(struct sockaddr *) &their_addr, sin_size)) == -1) {
+    			    perror("server: sendto");
+    			    exit(1);
+ 			    }
 
-                //Insert method
-                if(first == 'i'){
-                    memmove(buf, buf+7, strlen(buf)); //remove "insert" from the string
-
-                    //Save the data into the database
-                    if(save_data(buf)){
-                        printf("server: Client saved in the database\n");
-                        int len;
-                        len = strlen("Operation Successful"); //Send operation successful
-                        if (send_message(new_fd, "Operation Successful", &len) == -1) {
-                            perror("send_message");
-                            printf("We only sent %d bytes because of the error!\n", len);
-                        } 
-                    }
-
-                    //If it fails, send operation failed
-                    else{
-                        int len;
-                        len = strlen("Operation Failed");
-                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
-                            perror("send_message");
-                            printf("We only sent %d bytes because of the error!\n", len);
-                        }
-                    }
-                    
-	            }
-
-                //Get all method
-                else if(first == 'a'){
-
-                    //If fails, send operation failed
-                    if (!get_all(new_fd)){
-                        int len;
-                        len = strlen("Operation Failed");
-                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
-                            perror("send_message");
-                            printf("We only sent %d bytes because of the error!\n", len);
-                        }
-                    }
-                }
-
-                //Get by email method
-                else if(first == 'e'){
-                    memmove(buf, buf+6, strlen(buf)); //remove "email" from the string
-
-                    //If fails, send operation failed
-                    if(!get_profile(buf, new_fd)){
-                        int len;
-                        len = strlen("Operation Failed");
-                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
-                            perror("send_message");
-                            printf("We only sent %d bytes because of the error!\n", len);
-                        } 
-                    }
-                }
-
-                //Get by course method
-                else if(first == 'c'){
-                    memmove(buf, buf+7, strlen(buf)); //remove "course" fro string
-
-                    //If fails, send operation failed
-                    if(!get_profile_by_course(buf, new_fd)){
-                        int len;
-                        len = strlen("Operation Failed");
-                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
-                            perror("send_message");
-                            printf("We only sent %d bytes because of the error!\n", len);
-                        }
-                    }
-                }
-
-                //Get by skill method
-                else if(first == 's'){
-                    memmove(buf, buf+6, strlen(buf)); //remove "skill" from the string
-
-                    //If fails, send operation failed
-                    if(!get_profile_by_skill(buf, new_fd)){
-                        int len;
-                        len = strlen("Operation Failed");
-                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
-                            perror("send_message");
-                            printf("We only sent %d bytes because of the error!\n", len);
-                        } 
-                    }
-                }
-
-                //Get by year method
-                else if(first == 'y'){
-                    memmove(buf, buf+5, strlen(buf)); //remove "year" from the string
-
-                    //If fails, send operation failed
-                    if(!get_profile_by_year(buf, new_fd)){
-                        int len;
-                        len = strlen("Operation Failed");
-                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
-                            perror("send_message");
-                            printf("We only sent %d bytes because of the error!\n", len);
-                        }
-                    }
-                }
-
-                //Remove method
-                else if(first == 'r'){
-                    memmove(buf, buf+7, strlen(buf)); //remove "remove" from the string
-
-                    //Remove the profile from the database
-                    if(remove_profile(buf)){
-                        printf("server: Client removed from the database\n");
-                        int len;
-                        len = strlen("Operation Successful"); //Send operation successful
-                        if (send_message(new_fd, "Operation Successful", &len) == -1) {
-                            perror("send_message");
-                            printf("We only sent %d bytes because of the error!\n", len);
-                        }
-                    }
-
-                    //If fails, send operation failed
-                    else{
-                        int len;
-                        len = strlen("Operation Failed");
-                        if (send_message(new_fd, "Operation Failed", &len) == -1) {
-                            perror("send_message");
-                            printf("We only sent %d bytes because of the error!\n", len);
-                        } 
-                    }
-                }
-
-                //If the conection closes, print exiting
-                else if(strcmp(buf, "") == 0){
-                    printf("server: Exiting connection from %s\n", s);
-                    break;
-	            }
-
-                //If there is a mistake on the input
-                else{
-                    int len;
-                    len = strlen("error");
-                    if (send_message(new_fd, "error", &len) == -1) {
-                        perror("send_message");
-                        printf("We only sent %d bytes because of the error!\n", len);
-                    }
-                }
-                bzero(buf, MAXDATASIZE);
+			    printf("server: sent %d bytes to %s\n", numbytes, inet_ntop(their_addr.ss_family,get_in_addr((struct sockaddr *)&their_addr),s, sizeof s));
             }
-            close(new_fd);
-            exit(0);
-        }
-        close(new_fd);  // parent doesn't need this
-    }
 
-    sin_size = sizeof their_addr;
-    new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-    if (new_fd == -1) {
-        perror("accept");
-        exit(1);
+            //If it fails, send operation failed
+            else{
+                int len;
+                len = strlen("Operation Failed");
+                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                    perror("send_message");
+                    printf("We only sent %d bytes because of the error!\n", len);
+                }
+            }
+            
+	    }
+
+        //Get all method
+        else if(first == 'a'){
+
+            //If fails, send operation failed
+            if (!get_all(new_fd)){
+                int len;
+                len = strlen("Operation Failed");
+                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                    perror("send_message");
+                    printf("We only sent %d bytes because of the error!\n", len);
+                }
+            }
+        }
+
+        //Get by email method
+        else if(first == 'e'){
+            memmove(buf, buf+6, strlen(buf)); //remove "email" from the string
+
+            //If fails, send operation failed
+            if(!get_profile(buf, new_fd)){
+                int len;
+                len = strlen("Operation Failed");
+                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                    perror("send_message");
+                    printf("We only sent %d bytes because of the error!\n", len);
+                } 
+            }
+        }
+
+        //Get by course method
+        else if(first == 'c'){
+            memmove(buf, buf+7, strlen(buf)); //remove "course" fro string
+
+            //If fails, send operation failed
+            if(!get_profile_by_course(buf, new_fd)){
+                int len;
+                len = strlen("Operation Failed");
+                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                    perror("send_message");
+                    printf("We only sent %d bytes because of the error!\n", len);
+                }
+            }
+        }
+
+        //Get by skill method
+        else if(first == 's'){
+            memmove(buf, buf+6, strlen(buf)); //remove "skill" from the string
+
+            //If fails, send operation failed
+            if(!get_profile_by_skill(buf, new_fd)){
+                int len;
+                len = strlen("Operation Failed");
+                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                    perror("send_message");
+                    printf("We only sent %d bytes because of the error!\n", len);
+                } 
+            }
+        }
+
+        //Get by year method
+        else if(first == 'y'){
+            memmove(buf, buf+5, strlen(buf)); //remove "year" from the string
+
+            //If fails, send operation failed
+            if(!get_profile_by_year(buf, new_fd)){
+                int len;
+                len = strlen("Operation Failed");
+                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                    perror("send_message");
+                    printf("We only sent %d bytes because of the error!\n", len);
+                }
+            }
+        }
+
+        //Remove method
+        else if(first == 'r'){
+            memmove(buf, buf+7, strlen(buf)); //remove "remove" from the string
+
+            //Remove the profile from the database
+            if(remove_profile(buf)){
+                printf("server: Client removed from the database\n");
+                int len;
+                len = strlen("Operation Successful"); //Send operation successful
+                if (send_message(new_fd, "Operation Successful", &len) == -1) {
+                    perror("send_message");
+                    printf("We only sent %d bytes because of the error!\n", len);
+                }
+            }
+
+            //If fails, send operation failed
+            else{
+                int len;
+                len = strlen("Operation Failed");
+                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                    perror("send_message");
+                    printf("We only sent %d bytes because of the error!\n", len);
+                } 
+            }
+        }
+
+        //If the conection closes, print exiting
+        else if(strcmp(buf, "") == 0){
+            printf("server: Exiting connection from %s\n", s);
+            break;
+	    }
+
+        //If there is a mistake on the input
+        else{
+            int len;
+            len = strlen("error");
+            if (send_message(new_fd, "error", &len) == -1) {
+                perror("send_message");
+                printf("We only sent %d bytes because of the error!\n", len);
+            }
+        }
+        bzero(buf, MAXDATASIZE);
     }
 
     return 0;

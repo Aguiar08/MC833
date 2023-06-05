@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_socktype = SOCK_DGRAM;
 
 	if ((rv = getaddrinfo(argv[1], PORT, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -150,14 +150,24 @@ int main(int argc, char *argv[])
 			//sends the message to the client	
 			int len;
             len = strlen(entry);
-            if (send_message(sockfd, entry, &len) == -1) {
-                perror("send_message");
-                printf("We only sent %d bytes because of the error!\n", len);
-            } 
+            if ((numbytes = sendto(sockfd, entry, len, 0,p->ai_addr, p->ai_addrlen)) == -1) {
+    			perror("talker: sendto");
+    			exit(1);
+ 			}
+
+			printf("client: sent %d bytes to %s\n", numbytes, argv[1]);
 
 			//clears the buffer and waits for the response
 			bzero(buf, MAXDATASIZE);
-			receive_message(numbytes, sockfd, buf);
+ 			if ((numbytes = recvfrom(sockfd, buf, MAXDATASIZE-1 , 0, p->ai_addr, p->ai_addrlen)) == -1) {
+    			perror("recvfrom");
+		    	exit(1);
+ 			}
+
+ 			printf("client: got packet from %s\n",argv[1]);
+ 			printf("client: packet is %d bytes long\n", numbytes);
+ 			buf[numbytes] = '\0';
+ 			printf("client: packet contains \"%s\"\n", buf);
 		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
