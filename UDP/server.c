@@ -90,34 +90,24 @@ int save_data(char* dados) {
 
 
 //===================== Send Message ================================
-int send_message(int s, char *buf, int *len){
+int send_message(int sockfd, char *buf, int *len, struct sockaddr_storage their_addr, socklen_t sin_size){
     int total = 0;        // how many bytes we've sent
     int bytesleft = *len; // how many we have left to send
     int n;
     while(total < *len) {
-        n = send(s, buf+total, bytesleft, 0); // sends all bytes
+        n = sendto(sockfd, buf+total, bytesleft, 0,(struct sockaddr *) &their_addr, sin_size);
         if (n == -1) { break; }
         total += n;
         bytesleft -= n;
     }
 
     *len = total; // return number actually sent here
-    printf("client: sent %s\n", buf);
+    printf("server: sent %s\n", buf);
     return n==-1?-1:0; // return -1 on failure, 0 on success
 } 
 
-//===================== Receive Message ================================
-char* receive_message(int numbytes, int new_fd, char buf[MAXDATASIZE]){
-    if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
-        perror("recv");
-        exit(1);
-    }
-	printf("server: received '%s'\n",buf);
-    return buf;
-}
-
 //===================== Get profile by Email ================================
-int get_profile(char* email, int new_fd) {
+int get_profile(char* email, int new_fd, struct sockaddr_storage their_addr, socklen_t sin_size) {
     char nome_arquivo[109];
     sprintf(nome_arquivo, "../users/%s.txt", email); //add the path to the file requested
 
@@ -143,7 +133,7 @@ int get_profile(char* email, int new_fd) {
     //sends the information
     int len;
     len = strlen(result);
-    if (send_message(new_fd, result, &len) == -1) {
+    if (send_message(new_fd, result, &len, their_addr, sin_size) == -1) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
@@ -151,7 +141,7 @@ int get_profile(char* email, int new_fd) {
 }
 
 //===================== Get profile by Course ================================
-int get_profile_by_course(char* course, int new_fd) {
+int get_profile_by_course(char* course, int new_fd, struct sockaddr_storage their_addr, socklen_t sin_size) {
     DIR *folder;
     struct dirent *entry;
 
@@ -215,7 +205,7 @@ int get_profile_by_course(char* course, int new_fd) {
     closedir(folder);
     int len;
     len = strlen(final);
-    if (send_message(new_fd, final, &len) == -1) {
+    if (send_message(new_fd, final, &len, their_addr, sin_size) == -1) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
@@ -224,7 +214,7 @@ int get_profile_by_course(char* course, int new_fd) {
 }
 
 //===================== Get profile by Skill ================================
-int get_profile_by_skill(char* skill, int new_fd) {
+int get_profile_by_skill(char* skill, int new_fd, struct sockaddr_storage their_addr, socklen_t sin_size) {
     DIR *folder;
     struct dirent *entry;
 
@@ -287,7 +277,7 @@ int get_profile_by_skill(char* skill, int new_fd) {
     closedir(folder);
     int len;
     len = strlen(final);
-    if (send_message(new_fd, final, &len) == -1) {
+    if (send_message(new_fd, final, &len, their_addr, sin_size) == -1) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
@@ -296,7 +286,7 @@ int get_profile_by_skill(char* skill, int new_fd) {
 }
 
 //===================== Get profile by Year ================================
-int get_profile_by_year(char* year, int new_fd) {
+int get_profile_by_year(char* year, int new_fd, struct sockaddr_storage their_addr, socklen_t sin_size) {
     DIR *folder;
     struct dirent *entry;
 
@@ -368,7 +358,7 @@ int get_profile_by_year(char* year, int new_fd) {
     closedir(folder);
     int len;
     len = strlen(final);
-    if (send_message(new_fd, final, &len) == -1) {
+    if (send_message(new_fd, final, &len, their_addr, sin_size) == -1) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
@@ -377,7 +367,7 @@ int get_profile_by_year(char* year, int new_fd) {
 }
 
 //===================== Get All users  ================================
-int get_all(int new_fd) {
+int get_all(int new_fd, struct sockaddr_storage their_addr, socklen_t sin_size) {
     DIR *folder;
     struct dirent *entry;
 
@@ -434,7 +424,7 @@ int get_all(int new_fd) {
     closedir(folder);
     int len;
     len = strlen(final);
-    if (send_message(new_fd, final, &len) == -1) {
+    if (send_message(new_fd, final, &len, their_addr, sin_size) == -1) {
         perror("send_message");
         printf("We only sent %d bytes because of the error!\n", len);
     } 
@@ -547,6 +537,7 @@ int main(void) {
     printf("server: waiting for connections...\n");
 
     while(1) {  // main accept() loop
+    
         //Receive the request from the user
         bzero(buf, MAXDATASIZE);
 		sin_size = sizeof their_addr;
@@ -571,19 +562,17 @@ int main(void) {
                 printf("server: Client saved in the database\n");
                 int len;
                 len = strlen("Operation Successful"); //Send operation successful
-                if ((numbytes = sendto(sockfd, "Operation Successful", len, 0,(struct sockaddr *) &their_addr, sin_size)) == -1) {
-    			    perror("server: sendto");
-    			    exit(1);
- 			    }
-
-			    printf("server: sent %d bytes to %s\n", numbytes, inet_ntop(their_addr.ss_family,get_in_addr((struct sockaddr *)&their_addr),s, sizeof s));
+                if (send_message(sockfd, "Operation Failed", &len, their_addr, sin_size) == -1) {
+                    perror("send_message");
+                    printf("We only sent %d bytes because of the error!\n", len);
+                }
             }
 
             //If it fails, send operation failed
             else{
                 int len;
                 len = strlen("Operation Failed");
-                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                if (send_message(sockfd, "Operation Failed", &len, their_addr, sin_size) == -1) {
                     perror("send_message");
                     printf("We only sent %d bytes because of the error!\n", len);
                 }
@@ -595,10 +584,10 @@ int main(void) {
         else if(first == 'a'){
 
             //If fails, send operation failed
-            if (!get_all(new_fd)){
+            if (!get_all(sockfd, their_addr, sin_size)){
                 int len;
                 len = strlen("Operation Failed");
-                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                if (send_message(sockfd, "Operation Failed", &len, their_addr, sin_size) == -1) {
                     perror("send_message");
                     printf("We only sent %d bytes because of the error!\n", len);
                 }
@@ -610,10 +599,10 @@ int main(void) {
             memmove(buf, buf+6, strlen(buf)); //remove "email" from the string
 
             //If fails, send operation failed
-            if(!get_profile(buf, new_fd)){
+            if(!get_profile(buf, sockfd, their_addr, sin_size)){
                 int len;
                 len = strlen("Operation Failed");
-                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                if (send_message(sockfd, "Operation Failed", &len, their_addr, sin_size) == -1) {
                     perror("send_message");
                     printf("We only sent %d bytes because of the error!\n", len);
                 } 
@@ -625,10 +614,10 @@ int main(void) {
             memmove(buf, buf+7, strlen(buf)); //remove "course" fro string
 
             //If fails, send operation failed
-            if(!get_profile_by_course(buf, new_fd)){
+            if(!get_profile_by_course(buf, sockfd, their_addr, sin_size)){
                 int len;
                 len = strlen("Operation Failed");
-                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                if (send_message(sockfd, "Operation Failed", &len, their_addr, sin_size) == -1) {
                     perror("send_message");
                     printf("We only sent %d bytes because of the error!\n", len);
                 }
@@ -640,10 +629,10 @@ int main(void) {
             memmove(buf, buf+6, strlen(buf)); //remove "skill" from the string
 
             //If fails, send operation failed
-            if(!get_profile_by_skill(buf, new_fd)){
+            if(!get_profile_by_skill(buf, sockfd, their_addr, sin_size)){
                 int len;
                 len = strlen("Operation Failed");
-                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                if (send_message(sockfd, "Operation Failed", &len, their_addr, sin_size) == -1) {
                     perror("send_message");
                     printf("We only sent %d bytes because of the error!\n", len);
                 } 
@@ -655,10 +644,10 @@ int main(void) {
             memmove(buf, buf+5, strlen(buf)); //remove "year" from the string
 
             //If fails, send operation failed
-            if(!get_profile_by_year(buf, new_fd)){
+            if(!get_profile_by_year(buf, sockfd, their_addr, sin_size)){
                 int len;
                 len = strlen("Operation Failed");
-                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                if (send_message(sockfd, "Operation Failed", &len, their_addr, sin_size) == -1) {
                     perror("send_message");
                     printf("We only sent %d bytes because of the error!\n", len);
                 }
@@ -674,7 +663,7 @@ int main(void) {
                 printf("server: Client removed from the database\n");
                 int len;
                 len = strlen("Operation Successful"); //Send operation successful
-                if (send_message(new_fd, "Operation Successful", &len) == -1) {
+                if (send_message(sockfd, "Operation Successful", &len, their_addr, sin_size) == -1) {
                     perror("send_message");
                     printf("We only sent %d bytes because of the error!\n", len);
                 }
@@ -684,7 +673,7 @@ int main(void) {
             else{
                 int len;
                 len = strlen("Operation Failed");
-                if (send_message(new_fd, "Operation Failed", &len) == -1) {
+                if (send_message(sockfd, "Operation Failed", &len, their_addr, sin_size) == -1) {
                     perror("send_message");
                     printf("We only sent %d bytes because of the error!\n", len);
                 } 
@@ -701,13 +690,13 @@ int main(void) {
         else{
             int len;
             len = strlen("error");
-            if (send_message(new_fd, "error", &len) == -1) {
+            if (send_message(sockfd, "error", &len, their_addr, sin_size) == -1) {
                 perror("send_message");
                 printf("We only sent %d bytes because of the error!\n", len);
             }
         }
         bzero(buf, MAXDATASIZE);
     }
-
+    close(sockfd);
     return 0;
 }
