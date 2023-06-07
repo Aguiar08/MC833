@@ -11,12 +11,14 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-
+#include <poll.h>
 #include <arpa/inet.h>
 
 #define PORT "3490" // the port client will be connecting to 
 
 #define MAXDATASIZE 1024 // max number of bytes we can get at once 
+
+#define TIMEOUT_MS 2000 // max milisseconds client will wait for server response
 
 //=================== Send function ===========================
 int send_message(int s, char *buf, int *len){
@@ -37,11 +39,23 @@ int send_message(int s, char *buf, int *len){
 
 //=================== Receive function ===========================
 char* receive_message(int numbytes, int sockfd, char* buf){
-    if ((numbytes = recv(sockfd, buf, strlen(buf)-1, 0)) == -1) {
-        perror("recv");
-        exit(1);
-    }
-	printf("client: received '%s'\n",buf);
+	struct pollfd pfds[1];
+
+	pfds[0].fd = 0;
+	pfds[0].events = POLLIN;
+
+	int numevents = poll(pfds, 1, TIMEOUT_MS);
+
+    if (numevents <= 0){
+		printf("client: timeout limit exceeded\n");
+		exit(1);
+	} else {
+		if ((numbytes = recv(sockfd, buf, strlen(buf)-1, 0)) == -1) {
+        	perror("recv");
+        	exit(1);
+    	}
+		printf("client: received '%s'\n",buf);
+	}
 	return buf;
 }
 
