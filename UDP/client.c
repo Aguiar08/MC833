@@ -39,17 +39,22 @@ int send_message(int s, char *buf, int *len){
 
 //=================== Receive function ===========================
 char* receive_message(int numbytes, int sockfd, char* buf){
-	struct pollfd pfds[1];
+	struct pollfd pfds[1]; //Creates poll struct
 
-	pfds[0].fd = 0;
-	pfds[0].events = POLLIN;
+	pfds[0].fd = sockfd; //Defines socket 
+	pfds[0].events = POLLIN; //Define read event monitoring
 
+	//Creates poll with timeout of 2000 ms
 	int numevents = poll(pfds, 1, TIMEOUT_MS);
 
+	//If timeout or error happens, exit the program
     if (numevents <= 0){
 		printf("client: timeout limit exceeded\n");
 		exit(1);
-	} else {
+	} 
+
+	//If data is received, use recv
+	else { 
 		if ((numbytes = recv(sockfd, buf, strlen(buf)-1, 0)) == -1) {
         	perror("recv");
         	exit(1);
@@ -59,6 +64,85 @@ char* receive_message(int numbytes, int sockfd, char* buf){
 	return buf;
 }
 
+//=================== Receive Image Function =====================
+void receive_image(int numbytes, int sockfd, char* name) {
+    FILE *image;
+    ssize_t recv_bytes;
+
+	//Image struct defined
+	typedef struct {
+    	int totalPackets;
+    	int packetIndex;
+    	char imageData[MAXDATASIZE];
+	} ImagePacket;
+
+    ImagePacket packet;
+    struct pollfd pfds[1]; //Creates poll struct
+
+	pfds[0].fd = sockfd; //Defines socket 
+	pfds[0].events = POLLIN; //Define read event monitoring
+
+    // Define the count of packets received and the total expected
+    int totalPacketsReceived = 0;
+    int totalPacketsExpected = -1;
+    int done = 0;
+
+    while (!done) {
+        pfds[0].fd = sockfd;
+        pfds[0].events = POLLIN;
+
+        //Creates poll with timeout of 2000 ms
+        int numevents = poll(pfds, 1, TIMEOUT_MS);
+
+		//if error happens, exit the program
+        if (numevents < 0) {
+            perror("client: error on image receive");
+            exit(1);
+        } 
+
+		//If timeout happens, stop reading the image
+		else if (numbytes == 0) {
+            printf("client: time limit exceeded\n");
+			break;
+        } 
+
+		else {
+            if (pfds[0].revents & POLLIN) {
+				if ((numbytes = recv(sockfd, &packet, sizeof(ImagePacket), 0)) == -1) {
+        			perror("recv");
+        			exit(1);
+				}
+
+                //If it is the first packet, define the expected packet number
+                if (totalPacketsExpected == -1) {
+                    totalPacketsExpected = packet.totalPackets;
+					
+                    //Create new file to save the image
+					char nome_arquivo[120];
+    				sprintf(nome_arquivo, "../download/%s.png", name);
+                    image = fopen(nome_arquivo, "wb");
+                    if (image == NULL) {
+                        perror("server: image open error");
+        				exit(1);
+                    }
+                }
+
+                //Writes the received data 
+                fwrite(packet.imageData, 1, recv_bytes - sizeof(int) * 2, image);
+                totalPacketsReceived++;
+
+                //If all packets were received, break
+                if (totalPacketsReceived == totalPacketsExpected) {
+                    done = 1;
+                }
+            }
+        }
+    }
+
+    //Close the image
+    fclose(image);
+    printf("client: image received\n");
+}
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -142,6 +226,7 @@ int main(int argc, char *argv[])
 			printf("\tskill : retornar todos os usuarios que tem uma determinada habilidade\n");
 			printf("\tyear : retornar todos os usuarios formados em um determinado ano\n");
 			printf("\tremove : remover usuario\n");
+			printf("\tphoto : retorna a foto de perfil do usuario\n");
 			printf("\texit : finalizar execucao\n");
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
@@ -314,6 +399,35 @@ int main(int argc, char *argv[])
 
 		//remove user method passed
 		else if(strcmp(entry, "remove")==0){
+			char aux[MAXDATASIZE];
+			fgets(aux, MAXDATASIZE, stdin); //gets the rest of the command, for example, the data from the insert
+			aux[strlen(aux)-1] = '\0';
+			strcat(entry, aux); //puts all the info in one string
+			if(strlen(aux) == 0){
+				printf("client: Comando inválido\n");
+				printf("client: Insira o comando: ");
+				scanf("%s", &entry);
+				continue;
+			}
+
+			//sends the message to the client	
+			int len;
+            len = strlen(entry);
+            if (send_message(sockfd, entry, &len) == -1) {
+                perror("send_message");
+                printf("We only sent %d bytes because of the error!\n", len);
+            } 
+
+			//clears the buffer and waits for the response
+			bzero(buf, MAXDATASIZE);
+			receive_message(numbytes, sockfd, buf);
+		
+			printf("client: Insira o comando: ");
+			scanf("%s", &entry);
+		}
+
+		//photo method passed
+		else if(strcmp(entry, "photo")==0){
 			char aux[MAXDATASIZE];
 			fgets(aux, MAXDATASIZE, stdin); //gets the rest of the command, for example, the data from the insert
 			aux[strlen(aux)-1] = '\0';

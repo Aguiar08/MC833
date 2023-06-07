@@ -454,6 +454,58 @@ int remove_profile(char* email) {
     }
 }
 
+//===================== Get photo ======================================
+int get_photo(char* email, int new_fd, struct sockaddr_storage their_addr, socklen_t sin_size) {
+    char nome_arquivo[109];
+    sprintf(nome_arquivo, "../images/%s.png", email); //add the path to the file requested
+    FILE *image;
+    int numbytes;
+
+    //create image struct
+    typedef struct {
+        int totalPackets; //Saves total number os packets
+        int packetIndex; //Saves current packet
+        char imageData[MAXDATASIZE]; //Saves packet data
+    } ImagePacket;
+
+    ImagePacket packet;
+
+    //Open the image in binary read mode
+    image = fopen(nome_arquivo, "rb");
+    if (image == NULL) {
+        perror("server: image open error");
+        exit(1);
+    }
+
+    //Get the image size to calculate the packets
+    fseek(image, 0, SEEK_END);
+    long imageSize = ftell(image);
+    fseek(image, 0, SEEK_SET);
+    
+    //Calculates the total number of packets needed
+    int totalPackets = imageSize/MAXDATASIZE;
+    if (imageSize % MAXDATASIZE != 0) {
+        totalPackets++;
+    }
+
+    //Send each packet, identifying the current packet and the respective data
+    int packetIndex = 0;
+    while ((numbytes = fread(packet.imageData, 1, MAXDATASIZE, image)) > 0) {
+        packet.totalPackets = totalPackets;
+        packet.packetIndex = packetIndex;
+        printf("Current: %i, Total: %i\n", packetIndex,totalPackets);
+        if (sendto(new_fd, &packet, sizeof(ImagePacket), 0, (struct sockaddr *)&their_addr, sin_size) < 0) {
+            perror("server: image send error");
+            exit(EXIT_FAILURE);
+        }
+        packetIndex++;
+    }
+
+    //Close the image
+    fclose(image);
+    return 1;
+}
+
 void sigchld_handler(int s){ 
     // waitpid() might overwrite errno, so we save and restore it:
     int saved_errno = errno;
@@ -562,7 +614,7 @@ int main(void) {
                 printf("server: Client saved in the database\n");
                 int len;
                 len = strlen("Operation Successful"); //Send operation successful
-                if (send_message(sockfd, "Operation Failed", &len, their_addr, sin_size) == -1) {
+                if (send_message(sockfd, "Operation Successful", &len, their_addr, sin_size) == -1) {
                     perror("send_message");
                     printf("We only sent %d bytes because of the error!\n", len);
                 }
@@ -679,6 +731,19 @@ int main(void) {
                 } 
             }
         }
+
+        //Photo method
+        else if(first == 'p'){
+            memmove(buf, buf+6, strlen(buf)); //remove "photo" from the string
+             if(!get_photo(buf, sockfd, their_addr, sin_size)){
+                int len;
+                len = strlen("Operation Failed");
+                if (send_message(sockfd, "Operation Failed", &len, their_addr, sin_size) == -1) {
+                    perror("send_message");
+                    printf("We only sent %d bytes because of the error!\n", len);
+                }
+            }
+	    }
 
         //If the conection closes, print exiting
         else if(strcmp(buf, "") == 0){
