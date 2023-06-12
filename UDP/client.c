@@ -108,11 +108,20 @@ void receive_image(int numbytes, int sockfd, char* name) {
 
 		else {
             if (pfds[0].revents & POLLIN) {
+
+                //If all packets were received, break
+                if (totalPacketsReceived == totalPacketsExpected) {
+                    done = 1;
+                }
+
+				//read the image struct
 				if ((numbytes = recv(sockfd, &packet, sizeof(ImagePacket), 0)) == -1) {
         			perror("recv");
         			exit(1);
 				}
+
 				printf("client: received packet %i/%i\n", packet.currentPacket, packet.totalPackets);
+
                 //If it is the first packet, define the expected packet number
                 if (totalPacketsExpected == -1) {
                     totalPacketsExpected = packet.totalPackets;
@@ -126,6 +135,8 @@ void receive_image(int numbytes, int sockfd, char* name) {
         				exit(1);
                     }
                 }
+
+				//Check if any package was lost
 				if (totalPacketsReceived != packet.currentPacket){
 					printf("client: some packets were lost\n");
 					totalPacketsReceived == packet.currentPacket-1;
@@ -133,11 +144,6 @@ void receive_image(int numbytes, int sockfd, char* name) {
                 //Writes the received data 
                 fwrite(packet.imageData, 1, sizeof(packet.imageData), image);
                 totalPacketsReceived++;
-
-                //If all packets were received, break
-                if (totalPacketsReceived == totalPacketsExpected) {
-                    done = 1;
-                }
             }
         }
     }
@@ -229,7 +235,7 @@ int main(int argc, char *argv[])
 			printf("\tskill : retornar todos os usuarios que tem uma determinada habilidade\n");
 			printf("\tyear : retornar todos os usuarios formados em um determinado ano\n");
 			printf("\tremove : remover usuario\n");
-			printf("\tphoto : retorna a foto de perfil do usuario\n");
+			printf("\tpicture : retorna a foto de perfil do usuario\n");
 			printf("\texit : finalizar execucao\n");
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
@@ -429,8 +435,8 @@ int main(int argc, char *argv[])
 			scanf("%s", &entry);
 		}
 
-		//photo method passed
-		else if(strcmp(entry, "photo")==0){
+		//picture method passed
+		else if(strcmp(entry, "picture")==0){
 			char aux[MAXDATASIZE];
 			fgets(aux, MAXDATASIZE, stdin); //gets the rest of the command, for example, the data from the insert
 			aux[strlen(aux)-1] = '\0';
