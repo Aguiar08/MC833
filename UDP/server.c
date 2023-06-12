@@ -464,7 +464,7 @@ int get_photo(char* email, int new_fd, struct sockaddr_storage their_addr, sockl
     //create image struct
     typedef struct {
         int totalPackets; //Saves total number os packets
-        int packetIndex; //Saves current packet
+        int currentPacket; //Saves current packet
         char imageData[MAXDATASIZE]; //Saves packet data
     } ImagePacket;
 
@@ -489,16 +489,17 @@ int get_photo(char* email, int new_fd, struct sockaddr_storage their_addr, sockl
     }
 
     //Send each packet, identifying the current packet and the respective data
-    int packetIndex = 0;
+    int currentPacket = 1;
     while ((numbytes = fread(packet.imageData, 1, MAXDATASIZE, image)) > 0) {
         packet.totalPackets = totalPackets;
-        packet.packetIndex = packetIndex;
-        printf("Current: %i, Total: %i\n", packetIndex,totalPackets);
+        packet.currentPacket = currentPacket;
+        printf("Current: %i, Total: %i\n", currentPacket,totalPackets);
         if (sendto(new_fd, &packet, sizeof(ImagePacket), 0, (struct sockaddr *)&their_addr, sin_size) < 0) {
             perror("server: image send error");
-            exit(EXIT_FAILURE);
+            exit(1);
         }
-        packetIndex++;
+        usleep(100);
+        currentPacket++;
     }
 
     //Close the image

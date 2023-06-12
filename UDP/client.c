@@ -72,7 +72,7 @@ void receive_image(int numbytes, int sockfd, char* name) {
 	//Image struct defined
 	typedef struct {
     	int totalPackets;
-    	int packetIndex;
+    	int currentPacket;
     	char imageData[MAXDATASIZE];
 	} ImagePacket;
 
@@ -83,7 +83,7 @@ void receive_image(int numbytes, int sockfd, char* name) {
 	pfds[0].events = POLLIN; //Define read event monitoring
 
     // Define the count of packets received and the total expected
-    int totalPacketsReceived = 0;
+    int totalPacketsReceived = 1;
     int totalPacketsExpected = -1;
     int done = 0;
 
@@ -101,7 +101,7 @@ void receive_image(int numbytes, int sockfd, char* name) {
         } 
 
 		//If timeout happens, stop reading the image
-		else if (numbytes == 0) {
+		else if (numevents == 0) {
             printf("client: time limit exceeded\n");
 			break;
         } 
@@ -112,7 +112,7 @@ void receive_image(int numbytes, int sockfd, char* name) {
         			perror("recv");
         			exit(1);
 				}
-
+				printf("client: received packet %i/%i\n", packet.currentPacket, packet.totalPackets);
                 //If it is the first packet, define the expected packet number
                 if (totalPacketsExpected == -1) {
                     totalPacketsExpected = packet.totalPackets;
@@ -126,9 +126,12 @@ void receive_image(int numbytes, int sockfd, char* name) {
         				exit(1);
                     }
                 }
-
+				if (totalPacketsReceived != packet.currentPacket){
+					printf("client: some packets were lost\n");
+					totalPacketsReceived == packet.currentPacket-1;
+				}
                 //Writes the received data 
-                fwrite(packet.imageData, 1, recv_bytes - sizeof(int) * 2, image);
+                fwrite(packet.imageData, 1, sizeof(packet.imageData), image);
                 totalPacketsReceived++;
 
                 //If all packets were received, break
@@ -449,7 +452,7 @@ int main(int argc, char *argv[])
 
 			//clears the buffer and waits for the response
 			bzero(buf, MAXDATASIZE);
-			receive_message(numbytes, sockfd, buf);
+			receive_image(numbytes, sockfd, aux);
 		
 			printf("client: Insira o comando: ");
 			scanf("%s", &entry);
